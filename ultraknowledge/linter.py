@@ -90,8 +90,10 @@ class KBLinter:
 
         self._check_staleness(articles, report, stale_days)
         self._check_quality(articles, report)
-        await self._check_contradictions(articles, report)
-        await self._check_gaps(articles, report)
+
+        entities = await self.client.entities(min_mentions=2)
+        await self._check_contradictions(articles, report, entities)
+        await self._check_gaps(articles, report, entities)
 
         return report
 
@@ -135,6 +137,8 @@ class KBLinter:
 
             try:
                 compiled_dt = datetime.fromisoformat(compiled)
+                if compiled_dt.tzinfo is None:
+                    compiled_dt = compiled_dt.replace(tzinfo=timezone.utc)
                 age_days = (now - compiled_dt).days
                 if age_days >= stale_days:
                     report.issues.append(
@@ -145,7 +149,7 @@ class KBLinter:
                             article=article["title"],
                         )
                     )
-            except ValueError:
+            except (ValueError, TypeError):
                 report.issues.append(
                     LintIssue(
                         severity="warn",
@@ -192,9 +196,13 @@ class KBLinter:
                     )
                 )
 
-    async def _check_contradictions(self, articles: list[dict[str, Any]], report: LintReport) -> None:
+    async def _check_contradictions(
+        self,
+        articles: list[dict[str, Any]],
+        report: LintReport,
+        entities: list[dict[str, Any]],
+    ) -> None:
         """Find contradictory claims across articles for the same entity."""
-        entities = await self.client.entities(min_mentions=2)
         if not entities:
             return
 
@@ -235,7 +243,12 @@ class KBLinter:
                             )
                         )
 
-    async def _check_gaps(self, articles: list[dict[str, Any]], report: LintReport) -> None:
+    async def _check_gaps(
+        self,
+        articles: list[dict[str, Any]],
+        report: LintReport,
+        entities: list[dict[str, Any]],
+    ) -> None:
         """Identify entities that appear in the KB but lack a dedicated article."""
         if not articles:
             report.issues.append(
@@ -246,8 +259,6 @@ class KBLinter:
                 )
             )
             return
-
-        entities = await self.client.entities(min_mentions=2)
         known_titles = {self._normalize_entity_name(article["title"]) for article in articles}
         for entity in entities:
             entity_name = entity.get("entity_name") or entity.get("name") or ""

@@ -38,7 +38,7 @@ def build_research_document(result: SearchResult) -> str:
         f"Source Title: {result.title}\n"
         f"Source URL: {result.url}\n"
         f"Published Date: {published}\n"
-        f"Search Score: {result.score:.3f}\n\n"
+        f"Search Score: {(result.score or 0.0):.3f}\n\n"
         f"{result.text.strip()}"
     )
 

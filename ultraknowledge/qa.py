@@ -97,7 +97,7 @@ class QAAgent:
         answer = response.choices[0].message.content
 
         # Estimate confidence based on chunk relevance scores
-        scores = [c.get("score", 0.5) for c in chunks]
+        scores = [c.get("score", 0.0) for c in chunks]
         confidence = sum(scores) / len(scores) if scores else 0.0
 
         return QAResponse(

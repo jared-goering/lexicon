@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from typing import Any
 
@@ -46,7 +47,8 @@ class ExaConnector:
         Uses Exa's neural search for semantic matching, then fetches
         the full text content of each result for ingestion.
         """
-        response = self.client.search_and_contents(
+        response = await asyncio.to_thread(
+            self.client.search_and_contents,
             query=query,
             num_results=num_results,
             text=True,
