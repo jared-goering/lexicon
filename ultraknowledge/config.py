@@ -19,9 +19,16 @@ class Settings:
         default_factory=lambda: float(os.getenv("UK_LLM_TEMPERATURE", "0.3"))
     )
 
-    # Ultramemory
+    # Ultramemory — ultraknowledge uses its OWN database, separate from OpenClaw's.
+    # Set UK_ULTRAMEMORY_URL to point at an external server, or leave blank to use
+    # the embedded engine with a dedicated DB at UK_ULTRAMEMORY_DB_PATH.
     ultramemory_url: str = field(
-        default_factory=lambda: os.getenv("UK_ULTRAMEMORY_URL", "http://localhost:8100")
+        default_factory=lambda: os.getenv("UK_ULTRAMEMORY_URL", "")
+    )
+    ultramemory_db_path: Path = field(
+        default_factory=lambda: Path(
+            os.getenv("UK_ULTRAMEMORY_DB_PATH", os.path.join(str(Path.home()), ".ultraknowledge", "memory.db"))
+        )
     )
     ultramemory_collection: str = field(
         default_factory=lambda: os.getenv("UK_ULTRAMEMORY_COLLECTION", "ultraknowledge")

@@ -1,24 +1,44 @@
-"""Async HTTP client for the Ultramemory API."""
+"""Client for Ultramemory — uses embedded engine by default (own DB), or HTTP if configured."""
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any
-
-import httpx
 
 from ultraknowledge.config import Settings, get_settings
 
 
 class UltramemoryClient:
-    """Thin async wrapper around the Ultramemory REST API (localhost:8100)."""
+    """Wraps Ultramemory.  Embedded mode (default) uses MemoryEngine directly
+    with ultraknowledge's own database.  Remote mode talks to an HTTP server.
+
+    Embedded is preferred — no separate server needed, fully isolated DB.
+    """
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
-        self.base_url = self.settings.ultramemory_url.rstrip("/")
+        self._remote_url = self.settings.ultramemory_url.rstrip("/") if self.settings.ultramemory_url else ""
+        self._engine = None  # lazy-init for embedded mode
+
+    @property
+    def is_remote(self) -> bool:
+        return bool(self._remote_url)
+
+    def _get_engine(self):
+        """Lazy-init the embedded MemoryEngine with ultraknowledge's own DB."""
+        if self._engine is None:
+            from ultramemory.engine import MemoryEngine
+
+            db_path = str(self.settings.ultramemory_db_path)
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            self._engine = MemoryEngine(db_path=db_path)
+        return self._engine
 
     def _make_session_key(self, source_type: str) -> str:
         return f"uk-{source_type}-{int(time.time())}"
+
+    # ── Ingest ───────────────────────────────────────────────────────────
 
     async def ingest(
         self,
@@ -27,19 +47,23 @@ class UltramemoryClient:
         agent_id: str = "ultraknowledge",
         document_date: str | None = None,
     ) -> dict[str, Any]:
-        """POST /api/ingest — extract memories via LLM, embed, and store."""
-        payload: dict[str, Any] = {
-            "text": text,
-            "session_key": session_key or self._make_session_key("ingest"),
-            "agent_id": agent_id,
-        }
-        if document_date:
-            payload["document_date"] = document_date
+        """Ingest text — extract memories via LLM, embed, store."""
+        sk = session_key or self._make_session_key("ingest")
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(f"{self.base_url}/api/ingest", json=payload)
-            resp.raise_for_status()
-            return resp.json()
+        if self.is_remote:
+            import httpx
+
+            payload: dict[str, Any] = {"text": text, "session_key": sk, "agent_id": agent_id}
+            if document_date:
+                payload["document_date"] = document_date
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                resp = await client.post(f"{self._remote_url}/api/ingest", json=payload)
+                resp.raise_for_status()
+                return resp.json()
+
+        engine = self._get_engine()
+        memories = engine.ingest(text=text, session_key=sk, agent_id=agent_id, document_date=document_date)
+        return {"memories_created": len(memories), "memories": memories}
 
     async def ingest_raw(
         self,
@@ -49,20 +73,26 @@ class UltramemoryClient:
         document_date: str | None = None,
         chunk_size: int = 512,
     ) -> dict[str, Any]:
-        """POST /api/ingest_raw — chunk and embed without LLM extraction."""
-        payload: dict[str, Any] = {
-            "text": text,
-            "session_key": session_key or self._make_session_key("raw"),
-            "agent_id": agent_id,
-            "chunk_size": chunk_size,
-        }
-        if document_date:
-            payload["document_date"] = document_date
+        """Store text without LLM extraction (chunk + embed only)."""
+        sk = session_key or self._make_session_key("raw")
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(f"{self.base_url}/api/ingest_raw", json=payload)
-            resp.raise_for_status()
-            return resp.json()
+        if self.is_remote:
+            import httpx
+
+            payload: dict[str, Any] = {"text": text, "session_key": sk, "agent_id": agent_id, "chunk_size": chunk_size}
+            if document_date:
+                payload["document_date"] = document_date
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(f"{self._remote_url}/api/ingest_raw", json=payload)
+                resp.raise_for_status()
+                return resp.json()
+
+        # Embedded: use ingest (no raw-only mode in engine, ingest does extraction)
+        engine = self._get_engine()
+        memories = engine.ingest(text=text, session_key=sk, agent_id=agent_id, document_date=document_date)
+        return {"memories_created": len(memories), "memories": memories}
+
+    # ── Search ───────────────────────────────────────────────────────────
 
     async def search(
         self,
@@ -70,39 +100,62 @@ class UltramemoryClient:
         top_k: int = 20,
         include_source: bool = False,
     ) -> list[dict[str, Any]]:
-        """POST /api/search — semantic search, returns list of memory dicts."""
-        payload = {
-            "query": query,
-            "top_k": top_k,
-            "include_source": include_source,
-        }
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(f"{self.base_url}/api/search", json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-            return data.get("results", [])
+        """Semantic search, returns list of memory dicts."""
+        if self.is_remote:
+            import httpx
+
+            payload = {"query": query, "top_k": top_k, "include_source": include_source}
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(f"{self._remote_url}/api/search", json=payload)
+                resp.raise_for_status()
+                data = resp.json()
+                return data.get("results", [])
+
+        engine = self._get_engine()
+        return engine.search(query=query, top_k=top_k)
+
+    # ── Stats / Health / Entities ────────────────────────────────────────
 
     async def stats(self) -> dict[str, Any]:
-        """GET /api/stats — memory counts and metadata."""
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{self.base_url}/api/stats")
-            resp.raise_for_status()
-            return resp.json()
+        """Memory counts and metadata."""
+        if self.is_remote:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(f"{self._remote_url}/api/stats")
+                resp.raise_for_status()
+                return resp.json()
+
+        engine = self._get_engine()
+        return engine.get_stats()
 
     async def health(self) -> dict[str, Any]:
-        """GET /api/health — health check."""
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(f"{self.base_url}/api/health")
-            resp.raise_for_status()
-            return resp.json()
+        """Health check."""
+        if self.is_remote:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(f"{self._remote_url}/api/health")
+                resp.raise_for_status()
+                return resp.json()
+
+        engine = self._get_engine()
+        stats = engine.get_stats()
+        return {"status": "ok", "mode": "embedded", "total_memories": stats.get("total_memories", 0)}
 
     async def entities(self, min_mentions: int = 1) -> list[dict[str, Any]]:
-        """GET /api/entities — list entities with mention counts."""
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                f"{self.base_url}/api/entities",
-                params={"min_mentions": min_mentions},
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data.get("entities", [])
+        """List entities with mention counts."""
+        if self.is_remote:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    f"{self._remote_url}/api/entities",
+                    params={"min_mentions": min_mentions},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return data.get("entities", [])
+
+        engine = self._get_engine()
+        return engine.list_entities(min_mentions=min_mentions)
