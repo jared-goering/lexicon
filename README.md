@@ -42,6 +42,13 @@ The wiki is the output, not the input.
 
 ## Features
 
+### Phase 2
+
+- **Research Mode** — `uk research "topic"` searches Exa, ingests results into Ultramemory, compiles findings into wiki articles, and rebuilds links
+- **Watch Mode** — `uk watch "topic" --interval 60` runs recurring research, compilation, and linting with watch state stored in `~/.ultraknowledge/watches.json`
+- **Q&A fallback research** — `uk ask "question"` automatically triggers web research when the KB has no relevant matches, then retries with formatted citations
+- **Real lint checks** — `uk lint` reports staleness, contradiction risks, and entity coverage gaps with `info`, `warn`, and `error` severities
+
 - **Ingest anything** — URLs, PDFs, text files, folders, RSS feeds, web search results
 - **LLM-compiled wiki** — Articles are written and updated by an LLM, not by you
 - **Auto-linking** — Entity mentions become `[[wikilinks]]`, index is rebuilt automatically
@@ -82,17 +89,24 @@ uk ingest https://arxiv.org/abs/2401.12345
 # Ingest a folder of notes
 uk ingest ./research-notes/ --type folder
 
-# Research a topic (fetches from the web via Exa)
-uk research "transformer architecture advances 2025"
+# Research a topic and auto-compile it
+uk research "transformer architecture advances 2025" --num-results 10
+
+# Run ongoing research every hour
+uk watch "transformer architecture advances 2025" --interval 60
+
+# List or stop recurring watches
+uk watch --list
+uk watch --stop "transformer architecture advances 2025"
 
 # Compile the wiki from everything ingested
 uk compile
 
-# Ask a question
+# Ask a question; if the KB is empty on that topic, research runs automatically
 uk ask "What are the key differences between attention mechanisms?"
 
 # Check knowledge base quality
-uk lint
+uk lint --stale-days 7
 
 # Export a topic as slides
 uk export "attention mechanisms" --format slides
@@ -131,7 +145,8 @@ All configuration is via environment variables:
 |----------|---------|-------------|
 | `UK_LLM_MODEL` | `gemini/gemini-2.0-flash` | LiteLLM model string |
 | `UK_LLM_TEMPERATURE` | `0.3` | LLM temperature for article generation |
-| `UK_ULTRAMEMORY_URL` | `http://localhost:8100` | Ultramemory server URL |
+| `UK_ULTRAMEMORY_URL` | empty | Optional Ultramemory server URL; leave unset to use the embedded engine |
+| `UK_ULTRAMEMORY_DB_PATH` | `~/.ultraknowledge/memory.db` | Embedded Ultramemory database path |
 | `UK_KB_DIR` | `./kb` | Output directory for the wiki |
 | `UK_COMPILE_FREQUENCY` | `60` | Auto-compile interval in minutes |
 | `EXA_API_KEY` | — | Exa API key for web research |
@@ -142,13 +157,13 @@ All configuration is via environment variables:
 
 ```
 uk ingest <source>      Ingest a URL, file, folder, or text
-uk research <query>     Research a topic via Exa web search
-uk ask <question>       Ask a question about your KB
+uk research <query>     Search Exa, ingest to Ultramemory, compile, and link
+uk ask <question>       Ask with grounded citations and auto-research fallback
 uk compile              Compile wiki from ingested chunks
-uk lint                 Run quality checks
+uk lint                 Report staleness, contradictions, and coverage gaps
 uk export <topic>       Export as slides/report/briefing
 uk serve                Start web UI + API server
-uk watch                Monitor folder or query for new content
+uk watch <topic>        Run recurring research, compile, and lint cycles
 ```
 
 ## API Reference

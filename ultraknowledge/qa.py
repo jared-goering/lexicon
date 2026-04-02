@@ -8,6 +8,7 @@ from typing import Any
 import litellm
 
 from ultraknowledge.config import Settings, get_settings
+from ultraknowledge.research import ResearchAgent, extract_research_metadata
 from ultraknowledge.ultramemory_client import UltramemoryClient
 
 QA_SYSTEM_PROMPT = """\
@@ -55,10 +56,14 @@ class QAAgent:
     """Search the knowledge base and synthesize answers with citations."""
 
     def __init__(
-        self, settings: Settings | None = None, client: UltramemoryClient | None = None
+        self,
+        settings: Settings | None = None,
+        client: UltramemoryClient | None = None,
+        research_agent: ResearchAgent | None = None,
     ) -> None:
         self.settings = settings or get_settings()
         self.client = client or UltramemoryClient(self.settings)
+        self.research_agent = research_agent or ResearchAgent(self.settings, client=self.client)
 
     async def ask(self, question: str) -> QAResponse:
         """Answer a question using the knowledge base.
@@ -103,12 +108,12 @@ class QAAgent:
         )
 
     async def answer_or_research(self, question: str) -> QAResponse:
-        """Answer from KB if possible, otherwise suggest research queries.
-
-        If the knowledge base lacks sufficient information, uses the LLM
-        to generate targeted search queries for Exa.
-        """
+        """Answer from KB, auto-researching when nothing relevant exists yet."""
         response = await self.ask(question)
+
+        if not response.citations:
+            await self.research_agent.research(question, num_results=5, compile=True)
+            response = await self.ask(question)
 
         if response.needs_research:
             queries = await self._suggest_research(question, response.answer)
@@ -122,11 +127,14 @@ class QAAgent:
         # Map Ultramemory result fields to the format expected by _build_context/_extract_citations
         chunks = []
         for r in results:
+            text = r.get("content", "")
+            metadata = extract_research_metadata(text)
             chunks.append({
-                "text": r.get("content", ""),
-                "source": r.get("source_session", "ultramemory"),
-                "title": r.get("category", "Knowledge Base"),
+                "text": text,
+                "source": metadata["url"] or r.get("source_session", "ultramemory"),
+                "title": metadata["title"] or r.get("category", "Knowledge Base"),
                 "score": r.get("similarity", 0.0),
+                "url": metadata["url"] or r.get("source_session", "ultramemory"),
             })
         return chunks
 
@@ -151,7 +159,7 @@ class QAAgent:
             citations.append(
                 Citation(
                     article_title=chunk.get("title", source),
-                    article_path=source,
+                    article_path=chunk.get("url", source),
                     relevance_score=chunk.get("score", 0.0),
                     excerpt=chunk.get("text", "")[:200],
                 )

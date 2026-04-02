@@ -10,6 +10,8 @@ from typing import Any
 import litellm
 
 from ultraknowledge.config import Settings, get_settings
+from ultraknowledge.research import extract_research_metadata
+from ultraknowledge.ultramemory_client import UltramemoryClient
 
 CONTRADICTION_PROMPT = """\
 Compare these two excerpts from the knowledge base and determine if they contain
@@ -24,23 +26,11 @@ Excerpt B (from "{source_b}"):
 {text_b}
 """
 
-GAP_PROMPT = """\
-Given these article titles and their source counts, identify topics that seem
-under-researched or have significant gaps. Return a JSON list of objects with:
-- "topic": the topic name
-- "reason": why it seems like a gap
-- "suggested_query": a search query to fill the gap
-
-Articles:
-{article_list}
-"""
-
-
 @dataclass
 class LintIssue:
     """A single issue found by the linter."""
 
-    severity: str  # "error", "warning", "info"
+    severity: str  # "error", "warn", "info"
     category: str  # "contradiction", "stale", "gap", "orphan", "quality"
     message: str
     article: str = ""
@@ -63,7 +53,7 @@ class LintReport:
 
     @property
     def warning_count(self) -> int:
-        return sum(1 for i in self.issues if i.severity == "warning")
+        return sum(1 for i in self.issues if i.severity == "warn")
 
     def summary(self) -> str:
         return (
@@ -84,18 +74,23 @@ class KBLinter:
     - Quality issues (very short articles, missing sources section)
     """
 
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        client: UltramemoryClient | None = None,
+    ) -> None:
         self.settings = settings or get_settings()
+        self.client = client or UltramemoryClient(self.settings)
 
-    async def lint(self, stale_days: int = 30) -> LintReport:
+    async def lint(self, stale_days: int = 7) -> LintReport:
         """Run all lint checks and return a comprehensive report."""
         report = LintReport()
         articles = self._load_articles()
         report.articles_checked = len(articles)
 
-        # Run checks
         self._check_staleness(articles, report, stale_days)
         self._check_quality(articles, report)
+        await self._check_contradictions(articles, report)
         await self._check_gaps(articles, report)
 
         return report
@@ -130,7 +125,7 @@ class KBLinter:
             if not compiled:
                 report.issues.append(
                     LintIssue(
-                        severity="warning",
+                        severity="warn",
                         category="stale",
                         message="Article has no compilation date",
                         article=article["title"],
@@ -141,17 +136,24 @@ class KBLinter:
             try:
                 compiled_dt = datetime.fromisoformat(compiled)
                 age_days = (now - compiled_dt).days
-                if age_days > stale_days:
+                if age_days >= stale_days:
                     report.issues.append(
                         LintIssue(
-                            severity="warning",
+                            severity="warn",
                             category="stale",
                             message=f"Article is {age_days} days old (threshold: {stale_days})",
                             article=article["title"],
                         )
                     )
             except ValueError:
-                pass
+                report.issues.append(
+                    LintIssue(
+                        severity="warn",
+                        category="stale",
+                        message="Article has an invalid compilation date",
+                        article=article["title"],
+                    )
+                )
 
     def _check_quality(self, articles: list[dict[str, Any]], report: LintReport) -> None:
         """Check basic article quality — length, structure, sources."""
@@ -163,7 +165,7 @@ class KBLinter:
             if len(body.strip()) < 200:
                 report.issues.append(
                     LintIssue(
-                        severity="warning",
+                        severity="warn",
                         category="quality",
                         message="Article body is very short (< 200 chars)",
                         article=article["title"],
@@ -190,8 +192,51 @@ class KBLinter:
                     )
                 )
 
+    async def _check_contradictions(self, articles: list[dict[str, Any]], report: LintReport) -> None:
+        """Find contradictory claims across articles for the same entity."""
+        entities = await self.client.entities(min_mentions=2)
+        if not entities:
+            return
+
+        checked_pairs: set[tuple[str, str, str]] = set()
+        for entity in entities[:10]:
+            entity_name = entity.get("entity_name") or entity.get("name") or ""
+            if not entity_name:
+                continue
+            matched_articles = [a for a in articles if self._mentions_entity(a["content"], entity_name)]
+            for i, article_a in enumerate(matched_articles):
+                for article_b in matched_articles[i + 1:]:
+                    pair_key = tuple(sorted((entity_name, article_a["slug"], article_b["slug"])))
+                    if pair_key in checked_pairs:
+                        continue
+                    checked_pairs.add(pair_key)
+                    excerpt_a = self._extract_entity_excerpt(article_a["content"], entity_name)
+                    excerpt_b = self._extract_entity_excerpt(article_b["content"], entity_name)
+                    if not excerpt_a or not excerpt_b:
+                        continue
+                    try:
+                        contradiction = await self._detect_contradiction(
+                            entity_name,
+                            article_a["title"],
+                            excerpt_a,
+                            article_b["title"],
+                            excerpt_b,
+                        )
+                    except Exception:
+                        continue
+                    if contradiction:
+                        report.issues.append(
+                            LintIssue(
+                                severity="error",
+                                category="contradiction",
+                                message=f"Conflicting facts about {entity_name}",
+                                article=f"{article_a['title']} vs {article_b['title']}",
+                                details=contradiction,
+                            )
+                        )
+
     async def _check_gaps(self, articles: list[dict[str, Any]], report: LintReport) -> None:
-        """Use LLM to identify knowledge gaps across the whole KB."""
+        """Identify entities that appear in the KB but lack a dedicated article."""
         if not articles:
             report.issues.append(
                 LintIssue(
@@ -202,34 +247,61 @@ class KBLinter:
             )
             return
 
-        article_list = "\n".join(
-            f"- {a['title']} ({a['chunks']} sources)" for a in articles
+        entities = await self.client.entities(min_mentions=2)
+        known_titles = {self._normalize_entity_name(article["title"]) for article in articles}
+        for entity in entities:
+            entity_name = entity.get("entity_name") or entity.get("name") or ""
+            if not entity_name:
+                continue
+            normalized = self._normalize_entity_name(entity_name)
+            if normalized in known_titles:
+                continue
+            mention_count = int(entity.get("mention_count", entity.get("count", 0)) or 0)
+            severity = "warn" if mention_count >= 3 else "info"
+            report.issues.append(
+                LintIssue(
+                    severity=severity,
+                    category="gap",
+                    message=f"Entity mentioned without a dedicated article: {entity_name}",
+                    details=f"Mentions: {mention_count}",
+                )
+            )
+
+    async def _detect_contradiction(
+        self,
+        entity: str,
+        source_a: str,
+        text_a: str,
+        source_b: str,
+        text_b: str,
+    ) -> str:
+        response = await litellm.acompletion(
+            model=self.settings.llm_model,
+            messages=[
+                {"role": "system", "content": "Return only valid JSON. No markdown fences."},
+                {
+                    "role": "user",
+                    "content": CONTRADICTION_PROMPT.format(
+                        entity=entity,
+                        source_a=source_a,
+                        text_a=text_a,
+                        source_b=source_b,
+                        text_b=text_b,
+                    ),
+                },
+            ],
+            temperature=0.1,
         )
 
-        try:
-            response = await litellm.acompletion(
-                model=self.settings.llm_model,
-                messages=[
-                    {"role": "user", "content": GAP_PROMPT.format(article_list=article_list)},
-                ],
-                temperature=0.3,
-            )
-            content = response.choices[0].message.content
+        import json
 
-            import json
-            gaps = json.loads(content)
-            if isinstance(gaps, list):
-                for gap in gaps[:5]:
-                    report.issues.append(
-                        LintIssue(
-                            severity="info",
-                            category="gap",
-                            message=gap.get("reason", "Knowledge gap detected"),
-                            details=f"Suggested query: {gap.get('suggested_query', '')}",
-                        )
-                    )
+        try:
+            payload = json.loads(response.choices[0].message.content)
         except Exception:
-            pass  # Gap analysis is best-effort
+            return ""
+        if payload.get("contradicts"):
+            return str(payload.get("explanation", "")).strip()
+        return ""
 
     @staticmethod
     def _parse_frontmatter(content: str) -> dict[str, str]:
@@ -247,3 +319,26 @@ class KBLinter:
                 if key and not value.startswith("\n"):
                     meta[key] = value
         return meta
+
+    @staticmethod
+    def _normalize_entity_name(text: str) -> str:
+        text = text.casefold().strip()
+        text = re.sub(r"[^\w\s-]", "", text)
+        text = re.sub(r"[\s_]+", "-", text)
+        return re.sub(r"-+", "-", text).strip("-")
+
+    @staticmethod
+    def _mentions_entity(content: str, entity: str) -> bool:
+        return bool(re.search(rf"\b{re.escape(entity)}\b", content, re.IGNORECASE))
+
+    @staticmethod
+    def _extract_entity_excerpt(content: str, entity: str) -> str:
+        body = re.sub(r"^---\n.*?\n---\n*", "", content, flags=re.DOTALL)
+        sentences = re.split(r"(?<=[.!?])\s+", body)
+        matched = [s.strip() for s in sentences if re.search(rf"\b{re.escape(entity)}\b", s, re.IGNORECASE)]
+        if matched:
+            return " ".join(matched[:3])
+        metadata = extract_research_metadata(content)
+        if metadata["title"] or metadata["url"]:
+            return body[:500]
+        return ""

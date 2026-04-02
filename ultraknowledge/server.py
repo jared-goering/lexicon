@@ -11,11 +11,11 @@ from pydantic import BaseModel
 from ultraknowledge.compiler import WikiCompiler
 from ultraknowledge.config import get_settings
 from ultraknowledge.connectors.url import URLConnector
-from ultraknowledge.connectors.web_search import ExaConnector
 from ultraknowledge.export import Exporter
 from ultraknowledge.linker import AutoLinker
 from ultraknowledge.linter import KBLinter
 from ultraknowledge.qa import QAAgent
+from ultraknowledge.research import ResearchAgent
 from ultraknowledge.ultramemory_client import UltramemoryClient
 
 app = FastAPI(
@@ -28,10 +28,10 @@ settings = get_settings()
 um_client = UltramemoryClient(settings)
 compiler = WikiCompiler(settings, client=um_client)
 linker = AutoLinker(settings)
-qa = QAAgent(settings, client=um_client)
 linter = KBLinter(settings)
 exporter = Exporter(settings)
-exa = ExaConnector(settings)
+research_agent = ResearchAgent(settings, client=um_client, compiler=compiler, linker=linker)
+qa = QAAgent(settings, client=um_client, research_agent=research_agent)
 url_connector = URLConnector(settings, client=um_client)
 
 
@@ -56,6 +56,7 @@ class AskRequest(BaseModel):
 class ResearchRequest(BaseModel):
     query: str
     num_results: int = 10
+    compile: bool = True
 
 
 class CompileRequest(BaseModel):
@@ -190,27 +191,19 @@ async def ask(req: AskRequest) -> dict[str, Any]:
 @app.post("/research")
 async def research(req: ResearchRequest) -> dict[str, Any]:
     """Research a topic via Exa web search and ingest results into Ultramemory."""
-    results = await exa.research(req.query, num_results=req.num_results)
-    chunks = exa.to_chunks(results)
-
-    # Send research results to Ultramemory
-    memories_created = 0
-    session_key = um_client._make_session_key("research")
-    for chunk in chunks:
-        text = chunk.get("text", "")
-        if text.strip():
-            result = await um_client.ingest(
-                text=text,
-                session_key=session_key,
-                agent_id="uk-research",
-            )
-            memories_created += result.get("memories_created", 0)
-
+    result = await research_agent.research(
+        req.query,
+        num_results=req.num_results,
+        compile=req.compile,
+    )
     return {
         "query": req.query,
-        "results_found": len(results),
-        "memories_created": memories_created,
-        "results": [{"title": r.title, "url": r.url, "score": r.score} for r in results],
+        "results_found": len(result.results),
+        "memories_created": result.memories_created,
+        "compiled": bool(result.article_paths),
+        "articles": [str(path) for path in result.article_paths],
+        "links_added": result.links_added,
+        "results": [{"title": r.title, "url": r.url, "score": r.score} for r in result.results],
     }
 
 

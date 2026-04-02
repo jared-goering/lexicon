@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from exa_py import Exa
-
 from ultraknowledge.config import Settings, get_settings
 
 
@@ -30,13 +28,15 @@ class ExaConnector:
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
-        self._client: Exa | None = None
+        self._client: Any | None = None
 
     @property
-    def client(self) -> Exa:
+    def client(self) -> Any:
         if self._client is None:
             if not self.settings.exa_api_key:
                 raise ValueError("EXA_API_KEY is required for web search. Set it in your environment.")
+            from exa_py import Exa
+
             self._client = Exa(api_key=self.settings.exa_api_key)
         return self._client
 

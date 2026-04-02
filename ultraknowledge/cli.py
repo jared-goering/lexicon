@@ -145,35 +145,40 @@ def search(query: str, num: int):
 
 @cli.command()
 @click.argument("query")
-@click.option("--num", "-n", default=10, help="Number of results")
-def research(query: str, num: int):
+@click.option("--num-results", "-n", default=10, help="Number of results")
+@click.option("--compile/--no-compile", "compile_results", default=True, help="Compile and link after research")
+def research(query: str, num_results: int, compile_results: bool):
     """Research a topic via Exa web search and ingest results.
 
     Example:
 
         uk research "transformer architecture advances 2025"
     """
-    from ultraknowledge.connectors.web_search import ExaConnector
+    from ultraknowledge.research import ResearchAgent
 
     settings = get_settings()
-    connector = ExaConnector(settings)
+    agent = ResearchAgent(settings)
 
     click.echo(f"Researching: {query}")
-    results = run_async(connector.research(query, num_results=num))
+    result = run_async(agent.research(query, num_results=num_results, compile=compile_results))
 
-    if not results:
+    if not result.results:
         click.echo("No results found.")
         return
 
-    click.echo(f"\nFound {len(results)} results:\n")
-    for i, r in enumerate(results, 1):
+    click.echo(f"\nFound {len(result.results)} results:\n")
+    for i, r in enumerate(result.results, 1):
         click.echo(f"  {i}. {r.title}")
         click.echo(f"     {r.url}")
         click.echo(f"     Score: {r.score:.3f} | {len(r.text)} chars")
         click.echo()
 
-    # TODO: Ingest results into Ultramemory
-    click.echo("Results ready for ingestion into knowledge base.")
+    click.echo(f"Memories created: {result.memories_created}")
+    if result.article_paths:
+        click.echo("Compiled articles:")
+        for path in result.article_paths:
+            click.echo(f"  - {path}")
+        click.echo(f"Links added: {result.links_added}")
 
 
 @cli.command()
@@ -196,9 +201,9 @@ def ask(question: str):
     click.echo(response.answer)
 
     if response.citations:
-        click.echo("\n--- Citations ---")
+        click.echo("\nSources:")
         for c in response.citations:
-            click.echo(f"  [{c.article_title}]({c.article_path}) (relevance: {c.relevance_score:.2f})")
+            click.echo(f"  - [{c.article_title}]({c.article_path})")
 
     if response.needs_research:
         click.echo("\n--- Knowledge gap detected ---")
@@ -247,7 +252,7 @@ def compile_kb(topic: str | None):
 
 
 @cli.command()
-@click.option("--stale-days", default=30, help="Days before an article is considered stale")
+@click.option("--stale-days", default=7, help="Days before an article is considered stale")
 def lint(stale_days: int):
     """Run quality checks on the knowledge base.
 
@@ -272,7 +277,7 @@ def lint(stale_days: int):
     if report.issues:
         click.echo()
         for issue in report.issues:
-            icon = {"error": "E", "warning": "W", "info": "I"}[issue.severity]
+            icon = {"error": "E", "warn": "W", "info": "I"}[issue.severity]
             article = f" [{issue.article}]" if issue.article else ""
             click.echo(f"  [{icon}] {issue.category}{article}: {issue.message}")
             if issue.details:
@@ -333,49 +338,40 @@ def serve(host: str | None, port: int | None):
 
 
 @cli.command("watch")
-@click.option("--folder", type=click.Path(exists=True), help="Watch a folder for new files")
-@click.option("--query", help="Watch for new web results matching a query")
-@click.option("--interval", default=300, help="Check interval in seconds (default: 300)")
-def watch(folder: str | None, query: str | None, interval: int):
-    """Watch a folder or search query for new content.
+@click.argument("topic", required=False)
+@click.option("--interval", default=60, help="Watch interval in minutes")
+@click.option("--list", "list_watches", is_flag=True, help="Show active watches")
+@click.option("--stop", "stop_topic", help="Stop watching a topic")
+def watch(topic: str | None, interval: int, list_watches: bool, stop_topic: str | None):
+    """Watch a topic by rerunning research, compile, and lint on a schedule."""
+    from ultraknowledge.watch import WatchAgent
 
-    Periodically checks for new files or search results and ingests them.
+    agent = WatchAgent(get_settings())
 
-    Examples:
+    if list_watches:
+        watches = agent.list_watches()
+        if not watches:
+            click.echo("No active watches.")
+            return
+        for watch_entry in watches:
+            last_run = watch_entry.last_run_at or "never"
+            click.echo(f"{watch_entry.topic} | every {watch_entry.interval_minutes} min | last run: {last_run}")
+        return
 
-        uk watch --folder ~/Documents/research --interval 60
+    if stop_topic:
+        if agent.stop_watch(stop_topic):
+            click.echo(f"Stopped watch: {stop_topic}")
+        else:
+            click.echo(f"No watch found for: {stop_topic}")
+        return
 
-        uk watch --query "LLM agents" --interval 600
-    """
-    if not folder and not query:
-        click.echo("Error: Provide --folder or --query to watch", err=True)
+    if not topic:
+        click.echo("Error: provide a topic, --list, or --stop", err=True)
         sys.exit(1)
 
-    click.echo(f"Watching every {interval}s... (Ctrl+C to stop)")
-
+    click.echo(f"Watching '{topic}' every {interval} minutes... (Ctrl+C to stop)")
     try:
-        while True:
-            if folder:
-                from ultraknowledge.connectors.files import FileConnector
-
-                connector = FileConnector(get_settings())
-                chunks = connector.ingest_folder(folder)
-                if chunks:
-                    click.echo(f"  Found {len(chunks)} files")
-                    # TODO: Send to Ultramemory
-
-            if query:
-                from ultraknowledge.connectors.web_search import ExaConnector
-
-                connector = ExaConnector(get_settings())
-                results = run_async(connector.research(query, num_results=5))
-                if results:
-                    click.echo(f"  Found {len(results)} new results for '{query}'")
-                    # TODO: Send to Ultramemory
-
-            import time
-            time.sleep(interval)
-
+        run_async(agent.watch(topic, interval_minutes=interval))
     except KeyboardInterrupt:
         click.echo("\nStopped watching.")
 
