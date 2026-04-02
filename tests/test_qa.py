@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -96,8 +97,7 @@ class TestQAResponse:
 
 
 class TestAsk:
-    @pytest.mark.asyncio
-    async def test_ask_empty_kb(self, agent: QAAgent):
+    def test_ask_empty_kb(self, agent: QAAgent):
         """When the KB has no data, the agent should indicate it needs research."""
-        response = await agent.ask("What is quantum computing?")
+        response = asyncio.run(agent.ask("What is quantum computing?"))
         assert response.needs_research or "don't have" in response.answer.lower()

@@ -107,7 +107,7 @@ def ingest(source: str, title: str | None, source_type: str | None):
         ))
         click.echo(f"Ingested: {title or 'Quick note'}")
         click.echo(f"  Length: {len(source)} chars")
-        click.echo(f"  Memories created: {result.get('count', 0)}")
+        click.echo(f"  Memories created: {result.get('memories_created', 0)}")
 
 
 @cli.command("search")

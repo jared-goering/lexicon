@@ -38,6 +38,21 @@ class UltramemoryClient:
     def _make_session_key(self, source_type: str) -> str:
         return f"uk-{source_type}-{int(time.time())}"
 
+    @staticmethod
+    def _normalize_ingest_result(result: dict[str, Any]) -> dict[str, Any]:
+        """Normalize ingest responses across embedded and remote modes."""
+        memories = result.get("memories", [])
+        count = result.get("count")
+        if count is None:
+            count = result.get("memories_created")
+        if count is None:
+            count = len(memories)
+
+        normalized = dict(result)
+        normalized["count"] = count
+        normalized["memories_created"] = count
+        return normalized
+
     # ── Ingest ───────────────────────────────────────────────────────────
 
     async def ingest(
@@ -59,11 +74,11 @@ class UltramemoryClient:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 resp = await client.post(f"{self._remote_url}/api/ingest", json=payload)
                 resp.raise_for_status()
-                return resp.json()
+                return self._normalize_ingest_result(resp.json())
 
         engine = self._get_engine()
         memories = engine.ingest(text=text, session_key=sk, agent_id=agent_id, document_date=document_date)
-        return {"memories_created": len(memories), "memories": memories}
+        return self._normalize_ingest_result({"memories": memories})
 
     async def ingest_raw(
         self,
@@ -85,12 +100,12 @@ class UltramemoryClient:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 resp = await client.post(f"{self._remote_url}/api/ingest_raw", json=payload)
                 resp.raise_for_status()
-                return resp.json()
+                return self._normalize_ingest_result(resp.json())
 
         # Embedded: use ingest (no raw-only mode in engine, ingest does extraction)
         engine = self._get_engine()
         memories = engine.ingest(text=text, session_key=sk, agent_id=agent_id, document_date=document_date)
-        return {"memories_created": len(memories), "memories": memories}
+        return self._normalize_ingest_result({"memories": memories})
 
     # ── Search ───────────────────────────────────────────────────────────
 

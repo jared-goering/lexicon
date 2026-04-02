@@ -64,7 +64,7 @@ class URLConnector:
                 agent_id="uk-url",
             )
             extracted["ultramemory"] = {
-                "memories_created": result.get("count", 0),
+                "memories_created": result.get("memories_created", 0),
                 "session_key": session_key,
             }
 

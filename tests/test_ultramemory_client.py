@@ -1,7 +1,8 @@
-"""Tests for the Ultramemory HTTP client."""
+"""Tests for the Ultramemory client."""
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import httpx
@@ -33,8 +34,7 @@ class TestSessionKey:
 
 
 class TestIngest:
-    @pytest.mark.asyncio
-    async def test_ingest_sends_correct_payload(self, client: UltramemoryClient):
+    def test_ingest_sends_correct_payload(self, client: UltramemoryClient):
         mock_response = httpx.Response(
             200,
             json={"memories": [{"id": "m1", "content": "test"}], "count": 1},
@@ -46,11 +46,12 @@ class TestIngest:
             new_callable=AsyncMock,
             return_value=mock_response,
         ) as mock_post:
-            result = await client.ingest(
-                "Hello world", session_key="test-session", agent_id="test"
+            result = asyncio.run(
+                client.ingest("Hello world", session_key="test-session", agent_id="test")
             )
 
         assert result["count"] == 1
+        assert result["memories_created"] == 1
         call_kwargs = mock_post.call_args
         assert call_kwargs[0][0] == "http://localhost:8100/api/ingest"
         payload = call_kwargs[1]["json"]
@@ -58,10 +59,22 @@ class TestIngest:
         assert payload["session_key"] == "test-session"
         assert payload["agent_id"] == "test"
 
+    def test_embedded_ingest_normalizes_result_shape(self):
+        settings = Settings()
+        settings.ultramemory_url = ""
+        client = UltramemoryClient(settings)
+
+        with patch.object(client, "_get_engine") as mock_get_engine:
+            mock_get_engine.return_value.ingest.return_value = [{"id": "m1", "content": "test"}]
+            result = asyncio.run(client.ingest("Hello world"))
+
+        assert result["count"] == 1
+        assert result["memories_created"] == 1
+        assert result["memories"][0]["id"] == "m1"
+
 
 class TestSearch:
-    @pytest.mark.asyncio
-    async def test_search_returns_results(self, client: UltramemoryClient):
+    def test_search_returns_results(self, client: UltramemoryClient):
         mock_response = httpx.Response(
             200,
             json={
@@ -74,14 +87,13 @@ class TestSearch:
         )
 
         with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response):
-            results = await client.search("test query", top_k=5)
+            results = asyncio.run(client.search("test query", top_k=5))
 
         assert len(results) == 1
         assert results[0]["content"] == "result 1"
         assert results[0]["similarity"] == 0.9
 
-    @pytest.mark.asyncio
-    async def test_search_empty_results(self, client: UltramemoryClient):
+    def test_search_empty_results(self, client: UltramemoryClient):
         mock_response = httpx.Response(
             200,
             json={"results": [], "count": 0},
@@ -89,14 +101,13 @@ class TestSearch:
         )
 
         with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response):
-            results = await client.search("nonexistent")
+            results = asyncio.run(client.search("nonexistent"))
 
         assert results == []
 
 
 class TestStats:
-    @pytest.mark.asyncio
-    async def test_stats(self, client: UltramemoryClient):
+    def test_stats(self, client: UltramemoryClient):
         mock_response = httpx.Response(
             200,
             json={"total": 42, "current": 40, "superseded": 2},
@@ -104,14 +115,13 @@ class TestStats:
         )
 
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_response):
-            stats = await client.stats()
+            stats = asyncio.run(client.stats())
 
         assert stats["total"] == 42
 
 
 class TestHealth:
-    @pytest.mark.asyncio
-    async def test_health(self, client: UltramemoryClient):
+    def test_health(self, client: UltramemoryClient):
         mock_response = httpx.Response(
             200,
             json={"status": "ok", "memories": 100, "source_chunks": 50, "version": "0.2.1"},
@@ -119,14 +129,13 @@ class TestHealth:
         )
 
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_response):
-            health = await client.health()
+            health = asyncio.run(client.health())
 
         assert health["status"] == "ok"
 
 
 class TestEntities:
-    @pytest.mark.asyncio
-    async def test_entities(self, client: UltramemoryClient):
+    def test_entities(self, client: UltramemoryClient):
         mock_response = httpx.Response(
             200,
             json={"entities": [{"entity_name": "Python", "mention_count": 5}], "count": 1},
@@ -134,7 +143,7 @@ class TestEntities:
         )
 
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock, return_value=mock_response):
-            entities = await client.entities()
+            entities = asyncio.run(client.entities())
 
         assert len(entities) == 1
         assert entities[0]["entity_name"] == "Python"

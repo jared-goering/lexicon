@@ -146,7 +146,7 @@ async def ingest(req: IngestRequest) -> dict[str, Any]:
             "status": "ingested",
             "source": "manual",
             "title": req.title or "Untitled",
-            "memories_created": result.get("count", 0),
+            "memories_created": result.get("memories_created", 0),
         }
     else:
         raise HTTPException(status_code=400, detail="Provide either 'url' or 'text'")
@@ -204,7 +204,7 @@ async def research(req: ResearchRequest) -> dict[str, Any]:
                 session_key=session_key,
                 agent_id="uk-research",
             )
-            memories_created += result.get("count", 0)
+            memories_created += result.get("memories_created", 0)
 
     return {
         "query": req.query,

@@ -79,7 +79,7 @@ class FileConnector:
                 agent_id="uk-file",
             )
             chunk["ultramemory"] = {
-                "memories_created": result.get("count", 0),
+                "memories_created": result.get("memories_created", 0),
                 "session_key": session_key,
             }
         return chunk
@@ -99,7 +99,7 @@ class FileConnector:
                     agent_id="uk-file",
                 )
                 chunk["ultramemory"] = {
-                    "memories_created": result.get("count", 0),
+                    "memories_created": result.get("memories_created", 0),
                     "session_key": session_key,
                 }
         return chunks
