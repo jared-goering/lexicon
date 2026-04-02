@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 import litellm
@@ -133,7 +132,7 @@ class KBLinter:
                     LintIssue(
                         severity="warning",
                         category="stale",
-                        message=f"Article has no compilation date",
+                        message="Article has no compilation date",
                         article=article["title"],
                     )
                 )

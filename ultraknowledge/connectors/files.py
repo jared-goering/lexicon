@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import mimetypes
 from pathlib import Path
 from typing import Any
 
 from ultraknowledge.config import Settings, get_settings
+from ultraknowledge.ultramemory_client import UltramemoryClient
 
 # File types we can ingest directly as text
 TEXT_EXTENSIONS = {
@@ -23,10 +23,13 @@ BINARY_EXTENSIONS = {".pdf", ".docx", ".pptx", ".xlsx", ".epub"}
 
 
 class FileConnector:
-    """Ingest files and folders into the knowledge base."""
+    """Ingest files and folders into the knowledge base, sending content to Ultramemory."""
 
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(
+        self, settings: Settings | None = None, client: UltramemoryClient | None = None
+    ) -> None:
         self.settings = settings or get_settings()
+        self.client = client or UltramemoryClient(self.settings)
 
     def ingest_file(self, path: str | Path) -> dict[str, Any]:
         """Read a file and return a chunk dict for ingestion.
@@ -64,6 +67,42 @@ class FileConnector:
                 "size_bytes": path.stat().st_size,
             },
         }
+
+    async def ingest_file_to_ultramemory(self, path: str | Path) -> dict[str, Any]:
+        """Read a file and send its content to Ultramemory."""
+        chunk = self.ingest_file(path)
+        if chunk["text"].strip() and not chunk["text"].startswith("["):
+            session_key = self.client._make_session_key("file")
+            result = await self.client.ingest(
+                text=chunk["text"],
+                session_key=session_key,
+                agent_id="uk-file",
+            )
+            chunk["ultramemory"] = {
+                "memories_created": result.get("count", 0),
+                "session_key": session_key,
+            }
+        return chunk
+
+    async def ingest_folder_to_ultramemory(
+        self, path: str | Path, recursive: bool = True
+    ) -> list[dict[str, Any]]:
+        """Ingest all supported files in a folder and send to Ultramemory."""
+        chunks = self.ingest_folder(path, recursive=recursive)
+        session_key = self.client._make_session_key("folder")
+        for chunk in chunks:
+            text = chunk["text"]
+            if text.strip() and not text.startswith("["):
+                result = await self.client.ingest(
+                    text=text,
+                    session_key=session_key,
+                    agent_id="uk-file",
+                )
+                chunk["ultramemory"] = {
+                    "memories_created": result.get("count", 0),
+                    "session_key": session_key,
+                }
+        return chunks
 
     def ingest_folder(self, path: str | Path, recursive: bool = True) -> list[dict[str, Any]]:
         """Ingest all supported files in a folder.
@@ -109,13 +148,22 @@ class FileConnector:
         )
 
     def _extract_pdf(self, path: Path) -> str:
-        """Extract text from a PDF file. Best-effort with stdlib."""
+        """Extract text from a PDF file. Tries pymupdf first, then pypdf."""
         try:
-            # Try PyPDF2/pypdf if available
+            import pymupdf
+
+            doc = pymupdf.open(str(path))
+            pages = [page.get_text() for page in doc]
+            doc.close()
+            return "\n\n".join(pages)
+        except ImportError:
+            pass
+
+        try:
             from pypdf import PdfReader
 
             reader = PdfReader(path)
             pages = [page.extract_text() or "" for page in reader.pages]
             return "\n\n".join(pages)
         except ImportError:
-            return f"[PDF file: {path.name} — install 'pypdf' for text extraction]"
+            return f"[PDF file: {path.name} — install 'pymupdf' or 'pypdf' for text extraction]"

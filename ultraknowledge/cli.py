@@ -56,44 +56,91 @@ def ingest(source: str, title: str | None, source_type: str | None):
         else:
             source_type = "text"
 
+    from ultraknowledge.ultramemory_client import UltramemoryClient
+
+    client = UltramemoryClient(settings)
+
     if source_type == "url":
         from ultraknowledge.connectors.url import URLConnector
 
-        connector = URLConnector(settings)
+        connector = URLConnector(settings, client=client)
         chunk = run_async(connector.fetch_and_ingest(source))
         click.echo(f"Ingested: {chunk['title']}")
         click.echo(f"  Source: {source}")
         click.echo(f"  Length: {len(chunk['text'])} chars")
+        um = chunk.get("ultramemory", {})
+        if um:
+            click.echo(f"  Memories created: {um.get('memories_created', 0)}")
 
     elif source_type == "file":
         from ultraknowledge.connectors.files import FileConnector
 
-        connector = FileConnector(settings)
-        chunk = connector.ingest_file(source)
+        connector = FileConnector(settings, client=client)
+        chunk = run_async(connector.ingest_file_to_ultramemory(source))
         click.echo(f"Ingested: {chunk['title']}")
         click.echo(f"  File: {source}")
         click.echo(f"  Length: {len(chunk['text'])} chars")
+        um = chunk.get("ultramemory", {})
+        if um:
+            click.echo(f"  Memories created: {um.get('memories_created', 0)}")
 
     elif source_type == "folder":
         from ultraknowledge.connectors.files import FileConnector
 
-        connector = FileConnector(settings)
-        chunks = connector.ingest_folder(source)
+        connector = FileConnector(settings, client=client)
+        chunks = run_async(connector.ingest_folder_to_ultramemory(source))
         click.echo(f"Ingested {len(chunks)} files from {source}")
+        total_memories = 0
         for chunk in chunks:
-            click.echo(f"  - {chunk['metadata']['filename']}")
+            um = chunk.get("ultramemory", {})
+            n = um.get("memories_created", 0)
+            total_memories += n
+            click.echo(f"  - {chunk['metadata']['filename']} ({n} memories)")
+        click.echo(f"  Total memories created: {total_memories}")
 
     elif source_type == "text":
-        chunk = {
-            "text": source,
-            "source": "manual",
-            "title": title or "Quick note",
-            "metadata": {"type": "manual"},
-        }
-        click.echo(f"Ingested: {chunk['title']}")
+        session_key = client._make_session_key("text")
+        result = run_async(client.ingest(
+            text=source,
+            session_key=session_key,
+            agent_id="uk-text",
+        ))
+        click.echo(f"Ingested: {title or 'Quick note'}")
         click.echo(f"  Length: {len(source)} chars")
+        click.echo(f"  Memories created: {result.get('count', 0)}")
 
-    # TODO: Send chunk(s) to Ultramemory
+
+@cli.command("search")
+@click.argument("query")
+@click.option("--num", "-n", default=10, help="Number of results")
+def search(query: str, num: int):
+    """Search the knowledge base via Ultramemory semantic search.
+
+    Example:
+
+        uk search "transformer architecture"
+    """
+    from ultraknowledge.ultramemory_client import UltramemoryClient
+
+    settings = get_settings()
+    client = UltramemoryClient(settings)
+
+    results = run_async(client.search(query, top_k=num))
+
+    if not results:
+        click.echo("No results found.")
+        return
+
+    click.echo(f"Found {len(results)} results:\n")
+    for i, r in enumerate(results, 1):
+        content = r.get("content", "")
+        preview = content[:120] + "..." if len(content) > 120 else content
+        similarity = r.get("similarity", 0)
+        category = r.get("category", "")
+        confidence = r.get("confidence", 0)
+        click.echo(f"  {i}. [{category}] (sim: {similarity:.3f}, conf: {confidence:.1f})")
+        click.echo(f"     {preview}")
+        click.echo()
 
 
 @cli.command()
@@ -126,7 +173,7 @@ def research(query: str, num: int):
         click.echo()
 
     # TODO: Ingest results into Ultramemory
-    click.echo(f"Results ready for ingestion into knowledge base.")
+    click.echo("Results ready for ingestion into knowledge base.")
 
 
 @cli.command()
@@ -143,18 +190,18 @@ def ask(question: str):
     settings = get_settings()
     agent = QAAgent(settings)
 
-    click.echo(f"Searching knowledge base...\n")
+    click.echo("Searching knowledge base...\n")
     response = run_async(agent.answer_or_research(question))
 
     click.echo(response.answer)
 
     if response.citations:
-        click.echo(f"\n--- Citations ---")
+        click.echo("\n--- Citations ---")
         for c in response.citations:
             click.echo(f"  [{c.article_title}]({c.article_path}) (relevance: {c.relevance_score:.2f})")
 
     if response.needs_research:
-        click.echo(f"\n--- Knowledge gap detected ---")
+        click.echo("\n--- Knowledge gap detected ---")
         click.echo("Suggested research queries:")
         for q in response.suggested_queries:
             click.echo(f"  uk research \"{q}\"")

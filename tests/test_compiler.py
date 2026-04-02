@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from ultraknowledge.compiler import WikiCompiler
 from ultraknowledge.config import Settings
+from ultraknowledge.ultramemory_client import UltramemoryClient
 
 
 @pytest.fixture
@@ -22,8 +24,15 @@ def tmp_settings(tmp_path: Path) -> Settings:
 
 
 @pytest.fixture
-def compiler(tmp_settings: Settings) -> WikiCompiler:
-    return WikiCompiler(tmp_settings)
+def mock_client() -> UltramemoryClient:
+    client = MagicMock(spec=UltramemoryClient)
+    client.search = AsyncMock(return_value=[])
+    return client
+
+
+@pytest.fixture
+def compiler(tmp_settings: Settings, mock_client: UltramemoryClient) -> WikiCompiler:
+    return WikiCompiler(tmp_settings, client=mock_client)
 
 
 class TestSlugify:

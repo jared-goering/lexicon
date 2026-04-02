@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -17,6 +16,7 @@ from ultraknowledge.export import Exporter
 from ultraknowledge.linker import AutoLinker
 from ultraknowledge.linter import KBLinter
 from ultraknowledge.qa import QAAgent
+from ultraknowledge.ultramemory_client import UltramemoryClient
 
 app = FastAPI(
     title="ultraknowledge",
@@ -25,13 +25,14 @@ app = FastAPI(
 )
 
 settings = get_settings()
-compiler = WikiCompiler(settings)
+um_client = UltramemoryClient(settings)
+compiler = WikiCompiler(settings, client=um_client)
 linker = AutoLinker(settings)
-qa = QAAgent(settings)
+qa = QAAgent(settings, client=um_client)
 linter = KBLinter(settings)
 exporter = Exporter(settings)
 exa = ExaConnector(settings)
-url_connector = URLConnector(settings)
+url_connector = URLConnector(settings, client=um_client)
 
 
 # --- Request/Response models ---
@@ -129,26 +130,45 @@ async def ingest(req: IngestRequest) -> dict[str, Any]:
     """Ingest a URL or raw text into the knowledge base."""
     if req.url:
         chunk = await url_connector.fetch_and_ingest(req.url)
-        # TODO: Send chunk to Ultramemory for storage
-        return {"status": "ingested", "source": req.url, "title": chunk["title"]}
+        return {
+            "status": "ingested",
+            "source": req.url,
+            "title": chunk["title"],
+            "memories_created": chunk.get("ultramemory", {}).get("memories_created", 0),
+        }
     elif req.text:
-        chunk = {
-            "text": req.text,
+        result = await um_client.ingest(
+            text=req.text,
+            session_key=um_client._make_session_key("api"),
+            agent_id="uk-api",
+        )
+        return {
+            "status": "ingested",
             "source": "manual",
             "title": req.title or "Untitled",
-            "metadata": {"type": "manual"},
+            "memories_created": result.get("count", 0),
         }
-        # TODO: Send chunk to Ultramemory for storage
-        return {"status": "ingested", "source": "manual", "title": chunk["title"]}
     else:
         raise HTTPException(status_code=400, detail="Provide either 'url' or 'text'")
 
 
 @app.post("/search")
 async def search(req: SearchRequest) -> dict[str, Any]:
-    """Semantic search across the knowledge base."""
-    # TODO: Integrate with Ultramemory search
-    return {"query": req.query, "results": [], "message": "Search will be available once Ultramemory is connected"}
+    """Semantic search across the knowledge base via Ultramemory."""
+    results = await um_client.search(req.query, top_k=req.limit)
+    return {
+        "query": req.query,
+        "results": [
+            {
+                "id": r.get("id"),
+                "content": r.get("content", ""),
+                "category": r.get("category"),
+                "confidence": r.get("confidence"),
+                "similarity": r.get("similarity"),
+            }
+            for r in results
+        ],
+    }
 
 
 @app.post("/ask")
@@ -169,13 +189,27 @@ async def ask(req: AskRequest) -> dict[str, Any]:
 
 @app.post("/research")
 async def research(req: ResearchRequest) -> dict[str, Any]:
-    """Research a topic via Exa web search and ingest results."""
+    """Research a topic via Exa web search and ingest results into Ultramemory."""
     results = await exa.research(req.query, num_results=req.num_results)
     chunks = exa.to_chunks(results)
-    # TODO: Send chunks to Ultramemory for storage
+
+    # Send research results to Ultramemory
+    memories_created = 0
+    session_key = um_client._make_session_key("research")
+    for chunk in chunks:
+        text = chunk.get("text", "")
+        if text.strip():
+            result = await um_client.ingest(
+                text=text,
+                session_key=session_key,
+                agent_id="uk-research",
+            )
+            memories_created += result.get("count", 0)
+
     return {
         "query": req.query,
         "results_found": len(results),
+        "memories_created": memories_created,
         "results": [{"title": r.title, "url": r.url, "score": r.score} for r in results],
     }
 
@@ -214,8 +248,18 @@ async def get_article(slug: str) -> dict[str, Any]:
 async def compile_kb(req: CompileRequest) -> dict[str, Any]:
     """Trigger wiki compilation — either a single topic or full recompile."""
     if req.topic:
-        # Single topic recompile would need chunks from Ultramemory
-        return {"status": "topic compilation requires Ultramemory integration", "topic": req.topic}
+        # Fetch chunks related to the topic from Ultramemory
+        results = await um_client.search(req.topic, top_k=50, include_source=True)
+        chunks = [
+            {"text": r.get("content", ""), "source": r.get("source_session", "ultramemory")}
+            for r in results
+        ]
+        if chunks:
+            path = await compiler.compile_topic(req.topic, chunks)
+            linker.generate_backlinks()
+            linker.rebuild_index()
+            return {"status": "compiled", "topic": req.topic, "articles": 1, "path": str(path)}
+        return {"status": "no_data", "topic": req.topic, "articles": 0}
     else:
         paths = await compiler.recompile_all()
         linker.generate_backlinks()

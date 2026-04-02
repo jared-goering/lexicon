@@ -8,6 +8,7 @@ from typing import Any
 import litellm
 
 from ultraknowledge.config import Settings, get_settings
+from ultraknowledge.ultramemory_client import UltramemoryClient
 
 QA_SYSTEM_PROMPT = """\
 You are a knowledge-base assistant. Answer the user's question using ONLY the
@@ -53,8 +54,11 @@ class Citation:
 class QAAgent:
     """Search the knowledge base and synthesize answers with citations."""
 
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(
+        self, settings: Settings | None = None, client: UltramemoryClient | None = None
+    ) -> None:
         self.settings = settings or get_settings()
+        self.client = client or UltramemoryClient(self.settings)
 
     async def ask(self, question: str) -> QAResponse:
         """Answer a question using the knowledge base.
@@ -114,12 +118,17 @@ class QAAgent:
 
     async def _search(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
         """Search Ultramemory for chunks relevant to the query."""
-        # TODO: Integrate with Ultramemory client
-        # Real implementation:
-        #   client = UltramemoryClient(self.settings.ultramemory_url)
-        #   results = await client.search(query, collection=self.settings.ultramemory_collection, limit=limit)
-        #   return results
-        return []
+        results = await self.client.search(query, top_k=limit, include_source=True)
+        # Map Ultramemory result fields to the format expected by _build_context/_extract_citations
+        chunks = []
+        for r in results:
+            chunks.append({
+                "text": r.get("content", ""),
+                "source": r.get("source_session", "ultramemory"),
+                "title": r.get("category", "Knowledge Base"),
+                "score": r.get("similarity", 0.0),
+            })
+        return chunks
 
     def _build_context(self, chunks: list[dict[str, Any]]) -> str:
         """Format chunks into context for the LLM."""

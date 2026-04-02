@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from ultraknowledge.config import Settings
 from ultraknowledge.qa import Citation, QAAgent, QAResponse
+from ultraknowledge.ultramemory_client import UltramemoryClient
 
 
 @pytest.fixture
@@ -21,8 +23,15 @@ def tmp_settings(tmp_path: Path) -> Settings:
 
 
 @pytest.fixture
-def agent(tmp_settings: Settings) -> QAAgent:
-    return QAAgent(tmp_settings)
+def mock_client() -> UltramemoryClient:
+    client = MagicMock(spec=UltramemoryClient)
+    client.search = AsyncMock(return_value=[])
+    return client
+
+
+@pytest.fixture
+def agent(tmp_settings: Settings, mock_client: UltramemoryClient) -> QAAgent:
+    return QAAgent(tmp_settings, client=mock_client)
 
 
 class TestBuildContext:

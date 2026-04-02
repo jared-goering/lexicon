@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any
 import litellm
 
 from ultraknowledge.config import Settings, get_settings
+from ultraknowledge.ultramemory_client import UltramemoryClient
 
 MANUAL_MARKER = "<!-- manual -->"
 
@@ -37,9 +39,12 @@ Chunks:
 class WikiCompiler:
     """Compiles ingested knowledge chunks into interconnected wiki articles."""
 
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(
+        self, settings: Settings | None = None, client: UltramemoryClient | None = None
+    ) -> None:
         self.settings = settings or get_settings()
         self.settings.ensure_dirs()
+        self.client = client or UltramemoryClient(self.settings)
 
     async def compile_topic(self, topic: str, chunks: list[dict[str, Any]]) -> Path:
         """Compile chunks for a single topic into a markdown article.
@@ -88,13 +93,60 @@ class WikiCompiler:
 
     async def _group_by_topic(self) -> dict[str, Any]:
         """Query Ultramemory for all chunks and group them by detected topic."""
-        # TODO: Replace with real Ultramemory search once SDK is integrated
-        # For now, return empty — the real implementation will:
-        # 1. Fetch all chunks from Ultramemory
-        # 2. Build summaries of each chunk
-        # 3. Ask LLM to group them into topics
-        # 4. Fetch full chunk data for each group
-        return {}
+        # Fetch a broad set of memories using a general query
+        all_memories = await self.client.search("*", top_k=500, include_source=True)
+
+        if not all_memories:
+            return {}
+
+        # Build summaries for the LLM
+        chunk_summaries = []
+        for i, mem in enumerate(all_memories):
+            content = mem.get("content", "")
+            category = mem.get("category", "unknown")
+            preview = content[:200] + "..." if len(content) > 200 else content
+            chunk_summaries.append(f"ID={i} | category={category} | {preview}")
+
+        summaries_text = "\n".join(chunk_summaries)
+        prompt = GROUPING_PROMPT.format(chunk_summaries=summaries_text)
+
+        response = await litellm.acompletion(
+            model=self.settings.llm_model,
+            messages=[
+                {"role": "system", "content": "Return only valid JSON. No markdown fences."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+        )
+        raw = response.choices[0].message.content.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = re.sub(r"^```(?:json)?\n?", "", raw)
+            raw = re.sub(r"\n?```$", "", raw)
+
+        try:
+            grouping = json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
+
+        # Map grouped IDs back to actual memory dicts as chunks
+        topics: dict[str, Any] = {}
+        for slug, data in grouping.items():
+            title = data.get("title", slug.replace("-", " ").title())
+            chunk_ids = data.get("chunk_ids", [])
+            chunks = []
+            for cid in chunk_ids:
+                if isinstance(cid, int) and 0 <= cid < len(all_memories):
+                    mem = all_memories[cid]
+                    chunks.append({
+                        "text": mem.get("content", ""),
+                        "source": mem.get("source_session", "ultramemory"),
+                        "id": mem.get("id"),
+                    })
+            if chunks:
+                topics[slug] = {"title": title, "chunks": chunks}
+
+        return topics
 
     async def _update_article(
         self, path: Path, existing: str, new_chunks: list[dict[str, Any]]
