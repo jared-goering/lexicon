@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from ultraknowledge.compiler import WikiCompiler
@@ -33,6 +35,10 @@ exporter = Exporter(settings)
 research_agent = ResearchAgent(settings, client=um_client, compiler=compiler, linker=linker)
 qa = QAAgent(settings, client=um_client, research_agent=research_agent)
 url_connector = URLConnector(settings, client=um_client)
+
+# --- Static files ---
+_static_dir = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 
 # --- Request/Response models ---
@@ -72,58 +78,42 @@ class ExportRequest(BaseModel):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard() -> str:
-    """Simple HTML dashboard showing KB stats and recent activity."""
+async def root() -> FileResponse:
+    """Serve the SPA shell."""
+    return FileResponse(str(_static_dir / "index.html"), media_type="text/html")
+
+
+@app.get("/api/stats")
+async def stats() -> dict[str, Any]:
+    """Return aggregate KB statistics for the UI footer."""
     articles_dir = settings.articles_dir
     article_count = len(list(articles_dir.glob("*.md"))) if articles_dir.exists() else 0
+    return {
+        "article_count": article_count,
+        "llm_model": settings.llm_model,
+        "system_state": "SUBSCRIBED" if article_count > 0 else "READY",
+    }
 
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>ultraknowledge</title>
-        <style>
-            body {{ font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; color: #e0e0e0; background: #1a1a2e; }}
-            h1 {{ color: #e94560; }}
-            .stat {{ display: inline-block; padding: 1rem 2rem; margin: 0.5rem; background: #16213e; border-radius: 8px; border: 1px solid #0f3460; }}
-            .stat .number {{ font-size: 2rem; font-weight: bold; color: #e94560; }}
-            .stat .label {{ color: #a0a0b0; font-size: 0.9rem; }}
-            a {{ color: #e94560; }}
-            code {{ background: #16213e; padding: 0.2rem 0.4rem; border-radius: 3px; }}
-        </style>
-    </head>
-    <body>
-        <h1>ultraknowledge</h1>
-        <p>LLM-compiled personal knowledge base</p>
 
-        <div>
-            <div class="stat">
-                <div class="number">{article_count}</div>
-                <div class="label">Articles</div>
-            </div>
-            <div class="stat">
-                <div class="number">{settings.llm_model.split('/')[-1]}</div>
-                <div class="label">LLM Model</div>
-            </div>
-        </div>
+@app.get("/api/topics")
+async def topics() -> dict[str, Any]:
+    """Return the top topics for the home-screen cards (most recently modified first)."""
+    articles_dir = settings.articles_dir
+    if not articles_dir.exists():
+        return {"topics": []}
 
-        <h2>API Endpoints</h2>
-        <ul>
-            <li><code>POST /ingest</code> — Ingest a URL or text</li>
-            <li><code>POST /search</code> — Semantic search</li>
-            <li><code>POST /ask</code> — Ask a question</li>
-            <li><code>POST /research</code> — Research a topic via Exa</li>
-            <li><code>GET /articles</code> — List all articles</li>
-            <li><code>GET /articles/{{slug}}</code> — Read an article</li>
-            <li><code>POST /compile</code> — Trigger wiki compilation</li>
-            <li><code>POST /lint</code> — Run KB quality checks</li>
-            <li><code>POST /export</code> — Export an article</li>
-        </ul>
-
-        <p>See <a href="/docs">/docs</a> for interactive API documentation.</p>
-    </body>
-    </html>
-    """
+    items = []
+    for md_file in articles_dir.glob("*.md"):
+        stat = md_file.stat()
+        items.append({
+            "slug": md_file.stem,
+            "title": md_file.stem.replace("-", " ").title(),
+            "size_bytes": stat.st_size,
+            "modified": stat.st_mtime,
+        })
+    # Most recently modified first
+    items.sort(key=lambda x: x["modified"], reverse=True)
+    return {"topics": items[:5]}
 
 
 @app.post("/ingest")
