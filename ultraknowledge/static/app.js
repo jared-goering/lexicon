@@ -19,6 +19,7 @@
     ingestions: [],
   };
   let graphViewCleanup = null;
+  let activeRouteToken = 0;
 
   // ─── Routing ─────────────────────────────────────────────────────────
   function navigate(hash) {
@@ -36,6 +37,7 @@
   }
 
   async function router() {
+    const routeToken = ++activeRouteToken;
     if (graphViewCleanup) {
       graphViewCleanup();
       graphViewCleanup = null;
@@ -43,7 +45,7 @@
     const route = getRoute();
     switch (route.view) {
       case 'home': await renderHome(); break;
-      case 'graph': await renderGraph(); break;
+      case 'graph': await renderGraph(routeToken); break;
       case 'article': await renderArticle(route.slug); break;
       case 'ask': await renderAsk(route.question); break;
       case 'research': await renderResearch(route.query); break;
@@ -478,7 +480,7 @@
   }
 
   // ─── Graph View ──────────────────────────────────────────────────────
-  async function renderGraph() {
+  async function renderGraph(routeToken) {
     app().innerHTML = `
       <main class="graph-shell">
         <header class="graph-topbar">
@@ -516,8 +518,24 @@
       return;
     }
 
+    let cleanedUp = false;
+    const cleanupFns = [];
+    graphViewCleanup = function () {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      cleanupFns.forEach(fn => fn());
+    };
+
     try {
       const data = await loadGraph();
+      if (cleanedUp || routeToken !== activeRouteToken || getRoute().view !== 'graph') return;
+
+      const container = $('#graph-canvas');
+      const tooltip = $('#graph-tooltip');
+      const chargeInput = $('#graph-charge');
+      const linkDistanceInput = $('#graph-link-distance');
+      if (!container || !tooltip || !chargeInput || !linkDistanceInput) return;
+
       const nodes = (data.nodes || []).map(node => ({
         ...node,
         __radius: clamp(4, scaleSourceCount(node.source_count, data.nodes || []), 20),
@@ -538,14 +556,10 @@
       if (stats[1]) stats[1].textContent = `${edges.length} EDGES`;
 
       if (nodes.length === 0) {
-        $('#graph-canvas').innerHTML = '<div class="graph-empty-state">No articles compiled yet.</div>';
+        container.innerHTML = '<div class="graph-empty-state">No articles compiled yet.</div>';
         return;
       }
 
-      const container = $('#graph-canvas');
-      const tooltip = $('#graph-tooltip');
-      const chargeInput = $('#graph-charge');
-      const linkDistanceInput = $('#graph-link-distance');
       let hoveredNode = null;
       let pointer = { x: 0, y: 0 };
 
@@ -611,7 +625,13 @@
         pointer = { x: event.clientX - rect.left, y: event.clientY - rect.top };
         if (hoveredNode) updateTooltip(hoveredNode, tooltip, pointer);
       };
+      const onPointerLeave = () => {
+        hoveredNode = null;
+        updateTooltip(null, tooltip, pointer);
+        container.style.cursor = 'grab';
+      };
       container.addEventListener('pointermove', onPointerMove);
+      container.addEventListener('pointerleave', onPointerLeave);
 
       const onResize = () => {
         fg.width(container.clientWidth);
@@ -620,23 +640,35 @@
       window.addEventListener('resize', onResize);
       onResize();
 
-      chargeInput.addEventListener('input', () => {
+      const onChargeInput = () => {
         fg.d3Force('charge').strength(-Number(chargeInput.value));
         fg.d3ReheatSimulation();
-      });
-      linkDistanceInput.addEventListener('input', () => {
+      };
+      const onLinkDistanceInput = () => {
         fg.d3Force('link').distance(Number(linkDistanceInput.value));
         fg.d3ReheatSimulation();
-      });
-
-      graphViewCleanup = function () {
-        window.removeEventListener('resize', onResize);
-        container.removeEventListener('pointermove', onPointerMove);
-        tooltip.classList.add('hidden');
-        fg.pauseAnimation();
       };
+      chargeInput.addEventListener('input', onChargeInput);
+      linkDistanceInput.addEventListener('input', onLinkDistanceInput);
+
+      cleanupFns.push(() => window.removeEventListener('resize', onResize));
+      cleanupFns.push(() => container.removeEventListener('pointermove', onPointerMove));
+      cleanupFns.push(() => container.removeEventListener('pointerleave', onPointerLeave));
+      cleanupFns.push(() => chargeInput.removeEventListener('input', onChargeInput));
+      cleanupFns.push(() => linkDistanceInput.removeEventListener('input', onLinkDistanceInput));
+      cleanupFns.push(() => {
+        tooltip.classList.add('hidden');
+      });
+      cleanupFns.push(() => {
+        if (typeof fg.pauseAnimation === 'function') fg.pauseAnimation();
+        if (typeof fg._destructor === 'function') fg._destructor();
+      });
     } catch (err) {
-      $('#graph-canvas').innerHTML = `<div class="graph-empty-state">Unable to load graph.<br><span class="font-mono text-[11px] text-text-secondary">${escapeHTML(err.message)}</span></div>`;
+      if (cleanedUp || routeToken !== activeRouteToken || getRoute().view !== 'graph') return;
+      const container = $('#graph-canvas');
+      if (container) {
+        container.innerHTML = `<div class="graph-empty-state">Unable to load graph.<br><span class="font-mono text-[11px] text-text-secondary">${escapeHTML(err.message)}</span></div>`;
+      }
     }
   }
 

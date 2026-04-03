@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 from pathlib import Path
 from typing import Any
+import unicodedata
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -358,7 +359,7 @@ def _build_graph_cluster_labels(articles: dict[str, Any]) -> list[str]:
 def _cluster_id_for_article(info: Any, cluster_labels: list[str]) -> int:
     """Map an article into one of the four graph clusters."""
     if cluster_labels == ["A-F", "G-L", "M-R", "S-Z"]:
-        first_char = (info.title[:1] or "#").upper()
+        first_char = _graph_bucket_char(info.title)
         if first_char <= "F":
             return 0
         if first_char <= "L":
@@ -372,5 +373,16 @@ def _cluster_id_for_article(info: Any, cluster_labels: list[str]) -> int:
         return cluster_labels.index(heading)
 
     # Preserve four clusters even when an article falls outside the top heading groups.
-    first_char = (info.title[:1] or "#").upper()
+    first_char = _graph_bucket_char(info.title)
     return min((ord(first_char) - ord("A")) // 6 if "A" <= first_char <= "Z" else 3, 3)
+
+
+def _graph_bucket_char(title: str) -> str:
+    """Normalize the first title character for stable ASCII cluster bucketing."""
+    first_char = (title or "").strip()[:1]
+    if not first_char:
+        return "#"
+
+    normalized = unicodedata.normalize("NFKD", first_char)
+    ascii_char = normalized.encode("ascii", "ignore").decode("ascii")[:1]
+    return (ascii_char or first_char).upper()
