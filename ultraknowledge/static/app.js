@@ -196,11 +196,23 @@
 
     try {
       const data = await api('GET', `/articles/${encodeURIComponent(slug)}`);
-      const content = data.content || '';
+      let content = data.content || '';
+
+      // Strip YAML frontmatter (---\n...\n---) before rendering
+      const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n?/);
+      let fmMeta = {};
+      if (fmMatch) {
+        content = content.slice(fmMatch[0].length);
+        // Parse simple key: value pairs from frontmatter
+        fmMatch[1].split('\n').forEach(line => {
+          const kv = line.match(/^(\w+):\s*(.+)/);
+          if (kv) fmMeta[kv[1]] = kv[2].trim();
+        });
+      }
 
       // Extract metadata from markdown frontmatter-style headers
       const lines = content.split('\n');
-      let title = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      let title = fmMeta.title || slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
       let sources = [];
       let relatedTopics = [];
 
@@ -596,8 +608,9 @@
       const input = $('input[type="text"]:not(#ingest-url):not(#ingest-text):not(#ingest-title)');
       if (input) input.focus();
     }
-    // Escape closes modal
-    if (e.key === 'Escape') {
+    // Escape closes modal only if it's open
+    if (e.key === 'Escape' && $('#ingest-modal')) {
+      e.stopPropagation();
       closeIngestModal();
     }
   });
