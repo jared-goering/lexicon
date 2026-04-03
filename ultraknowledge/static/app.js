@@ -348,6 +348,9 @@
                   <button type="button" class="article-export-option" data-export-kind="pdf">PDF</button>
                 </div>
               </div>
+              <button type="button" id="article-delete-btn" class="article-export-btn" style="color:var(--text-muted);border-color:var(--border-subtle)" onclick="deleteArticle('${escapeAttr(slug)}')">
+                <span class="font-mono text-[10px] tracking-[0.2em]">DELETE</span>
+              </button>
             </div>
           </div>
 
@@ -1054,6 +1057,18 @@
   });
 
   // ─── Toast ───────────────────────────────────────────────────────────
+  window.deleteArticle = async function deleteArticle(slug) {
+    if (!confirm(`Delete article "${slug.replace(/-/g, ' ')}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`/articles/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || res.statusText); }
+      showToast('Article deleted');
+      window.location.hash = '';
+    } catch (err) {
+      showToast('Delete failed: ' + err.message);
+    }
+  };
+
   function showToast(msg) {
     const toast = document.createElement('div');
     toast.className = 'uk-toast';

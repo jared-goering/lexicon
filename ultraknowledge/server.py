@@ -311,6 +311,25 @@ async def get_article(slug: str) -> dict[str, Any]:
     return {"slug": slug, "content": content}
 
 
+@app.delete("/articles/{slug}")
+async def delete_article(slug: str) -> dict[str, Any]:
+    """Delete a wiki article by slug. Removes the .md file and rebuilds links/index."""
+    # Sanitise slug to prevent path traversal
+    safe_slug = Path(slug).name
+    if safe_slug != slug or ".." in slug:
+        raise HTTPException(status_code=400, detail="Invalid slug")
+    article_path = settings.articles_dir / f"{safe_slug}.md"
+    if not article_path.exists():
+        raise HTTPException(status_code=404, detail=f"Article not found: {slug}")
+    article_path.unlink()
+    # Rebuild backlinks and index after removal
+    linker.generate_backlinks()
+    linker.rebuild_index()
+    global _last_compiled_at
+    _last_compiled_at = time.time()
+    return {"status": "deleted", "slug": slug}
+
+
 @app.post("/compile")
 async def compile_kb(req: CompileRequest) -> dict[str, Any]:
     """Trigger wiki compilation — either a single topic or full recompile."""
