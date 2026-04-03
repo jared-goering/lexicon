@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 import unicodedata
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -254,6 +254,98 @@ async def _do_ingest(req: IngestRequest) -> dict[str, Any]:
         "memories_created": memories_created,
         "compiled": compiled_article,
     }
+
+
+_MEDIA_ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".mp3", ".wav", ".mp4", ".mov"}
+_MEDIA_IMAGE_EXT = {".png", ".jpg", ".jpeg"}
+_MEDIA_AUDIO_EXT = {".mp3", ".wav"}
+_MEDIA_VIDEO_EXT = {".mp4", ".mov"}
+_MAX_IMAGE = 20 * 1024 * 1024   # 20 MB
+_MAX_AUDIO = 25 * 1024 * 1024   # 25 MB
+_MAX_VIDEO = 50 * 1024 * 1024   # 50 MB
+
+
+@app.post("/ingest-media")
+async def ingest_media(file: UploadFile = File(...)) -> dict[str, Any]:
+    """Ingest a media file (image/audio/video) into the knowledge base."""
+    import tempfile
+
+    global _processing_count
+
+    # Validate extension
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in _MEDIA_ALLOWED_EXT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {ext}. Allowed: {', '.join(sorted(_MEDIA_ALLOWED_EXT))}",
+        )
+
+    # Determine size limit
+    if ext in _MEDIA_IMAGE_EXT:
+        max_size = _MAX_IMAGE
+    elif ext in _MEDIA_AUDIO_EXT:
+        max_size = _MAX_AUDIO
+    else:
+        max_size = _MAX_VIDEO
+
+    # Save to temp file and validate size
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    try:
+        size = 0
+        while chunk := await file.read(1024 * 1024):
+            size += len(chunk)
+            if size > max_size:
+                tmp.close()
+                Path(tmp.name).unlink(missing_ok=True)
+                max_mb = max_size // (1024 * 1024)
+                raise HTTPException(status_code=413, detail=f"File too large. Max {max_mb}MB for {ext} files.")
+            tmp.write(chunk)
+        tmp.close()
+
+        item = {"source": file.filename or "media", "title": file.filename or "Media upload"}
+        with _processing_lock:
+            _processing_count += 1
+            _processing_items.append(item)
+
+        try:
+            result = await um_client.ingest_media(
+                file_path=tmp.name,
+                session_key=um_client._make_session_key("media"),
+                agent_id="uk-api",
+            )
+
+            # Auto-compile article from the generated description
+            compiled_article = None
+            description = result.get("description", "")
+            if description.strip():
+                title_hint = Path(file.filename or "media").stem.replace("-", " ").replace("_", " ").title()
+                chunks = [{"text": description, "source": file.filename or "media-upload"}]
+                try:
+                    path = await compiler.compile_topic(title_hint, chunks)
+                    linker.generate_backlinks()
+                    linker.rebuild_index()
+                    compiled_article = str(path)
+                    global _last_compiled_at
+                    _last_compiled_at = time.time()
+                except Exception:
+                    pass  # Compilation is best-effort
+
+            return {
+                "status": "ingested",
+                "source": file.filename,
+                "title": result.get("description", file.filename)[:120],
+                "memories_created": 1,
+                "compiled": compiled_article,
+            }
+        finally:
+            with _processing_lock:
+                _processing_count = max(0, _processing_count - 1)
+                try:
+                    _processing_items.remove(item)
+                except ValueError:
+                    pass
+    finally:
+        Path(tmp.name).unlink(missing_ok=True)
 
 
 @app.post("/search")

@@ -1010,6 +1010,39 @@
           <textarea id="ingest-text" rows="4" placeholder="Paste text content\u2026"
             class="uk-search-input resize-y" style="font-size:0.9375rem;padding:0.85rem 1.15rem;border-radius:12px"></textarea>
 
+          <div class="flex items-center gap-3">
+            <div class="uk-divider flex-1"></div>
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.2em]">OR</span>
+            <div class="uk-divider flex-1"></div>
+          </div>
+
+          <div id="media-upload-area" style="border:1.5px dashed var(--border-subtle);border-radius:12px;padding:1.1rem;text-align:center;cursor:pointer;transition:border-color 0.15s"
+            onclick="document.getElementById('ingest-file').click()"
+            ondragover="event.preventDefault();this.style.borderColor='var(--accent-1)'"
+            ondragleave="this.style.borderColor='var(--border-subtle)'"
+            ondrop="event.preventDefault();this.style.borderColor='var(--border-subtle)';handleFileDrop(event)">
+            <input type="file" id="ingest-file" accept="image/png,image/jpeg,audio/mpeg,audio/wav,video/mp4,video/quicktime" style="display:none" onchange="handleFileSelect(this)">
+            <div class="font-mono text-[10px] text-text-muted tracking-[0.15em]">
+              <span style="font-size:1.3rem;display:block;margin-bottom:0.4rem;opacity:0.5">\u2B06</span>
+              DROP OR CLICK \u2014 IMAGE \u00B7 AUDIO \u00B7 VIDEO
+            </div>
+            <div class="font-mono text-[9px] text-text-muted" style="opacity:0.45;margin-top:0.3rem">
+              png, jpg \u00B7 mp3, wav \u00B7 mp4, mov
+            </div>
+          </div>
+          <div id="media-file-info" style="display:none" class="flex items-center gap-2 font-mono text-[10px]">
+            <span class="text-accent-1" id="media-file-icon">\u25C9</span>
+            <span class="text-text-secondary truncate" id="media-file-name"></span>
+            <span class="text-text-muted" id="media-file-size"></span>
+            <button onclick="clearMediaFile()" class="text-text-muted hover:text-text ml-auto">&times;</button>
+          </div>
+          <div id="media-progress" style="display:none">
+            <div style="background:var(--bg-warm);border-radius:6px;height:4px;overflow:hidden">
+              <div id="media-progress-bar" style="height:100%;width:0%;background:var(--accent-1);border-radius:6px;transition:width 0.2s"></div>
+            </div>
+            <span class="font-mono text-[9px] text-text-muted" id="media-progress-text">Uploading\u2026</span>
+          </div>
+
           <input type="text" id="ingest-title" placeholder="Title (optional)"
             class="uk-search-input" style="font-size:0.9375rem;padding:0.85rem 1.15rem">
 
@@ -1017,6 +1050,11 @@
             <button onclick="submitIngest()"
               class="font-mono text-[10px] tracking-[0.2em] bg-text text-bg px-6 py-3 rounded-lg hover:opacity-90 transition-opacity">
               INGEST
+            </button>
+            <button onclick="submitMediaIngest()"
+              id="media-ingest-btn" style="display:none"
+              class="font-mono text-[10px] tracking-[0.2em] bg-text text-bg px-6 py-3 rounded-lg hover:opacity-90 transition-opacity">
+              UPLOAD MEDIA
             </button>
             <button onclick="window.location.hash='#/research/'; closeIngestModal()"
               class="uk-ingest-btn">
@@ -1093,6 +1131,112 @@
     if (!feed) return;
     feed.innerHTML = state.ingestions.slice(0, 10).map(ingestionItemHTML).join('');
   }
+
+  // ─── Media upload ────────────────────────────────────────────────────
+  let _selectedMediaFile = null;
+
+  window.handleFileSelect = function (input) {
+    if (input.files && input.files[0]) setMediaFile(input.files[0]);
+  };
+
+  window.handleFileDrop = function (e) {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) setMediaFile(e.dataTransfer.files[0]);
+  };
+
+  function setMediaFile(file) {
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    const allowed = ['.png', '.jpg', '.jpeg', '.mp3', '.wav', '.mp4', '.mov'];
+    if (!allowed.includes(ext)) {
+      showToast('Unsupported file type: ' + ext);
+      return;
+    }
+    _selectedMediaFile = file;
+    const info = $('#media-file-info');
+    const area = $('#media-upload-area');
+    const btn = $('#media-ingest-btn');
+    if (info) {
+      info.style.display = 'flex';
+      $('#media-file-name').textContent = file.name;
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      $('#media-file-size').textContent = sizeMB + ' MB';
+    }
+    if (area) area.style.display = 'none';
+    if (btn) btn.style.display = '';
+  }
+
+  window.clearMediaFile = function () {
+    _selectedMediaFile = null;
+    const info = $('#media-file-info');
+    const area = $('#media-upload-area');
+    const btn = $('#media-ingest-btn');
+    const fileInput = $('#ingest-file');
+    if (info) info.style.display = 'none';
+    if (area) area.style.display = '';
+    if (btn) btn.style.display = 'none';
+    if (fileInput) fileInput.value = '';
+    const progress = $('#media-progress');
+    if (progress) progress.style.display = 'none';
+  };
+
+  window.submitMediaIngest = async function () {
+    if (!_selectedMediaFile) return;
+
+    const file = _selectedMediaFile;
+    const item = { source: file.name, status: 'processing', time: 'now' };
+    state.ingestions.unshift(item);
+    updateIngestionFeed();
+
+    // Show progress
+    const progress = $('#media-progress');
+    const bar = $('#media-progress-bar');
+    const text = $('#media-progress-text');
+    if (progress) progress.style.display = '';
+
+    const btn = $('#media-ingest-btn');
+    if (btn) { btn.textContent = 'UPLOADING\u2026'; btn.disabled = true; }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const xhr = new XMLHttpRequest();
+      const result = await new Promise((resolve, reject) => {
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable && bar && text) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            bar.style.width = pct + '%';
+            text.textContent = pct < 100 ? ('Uploading\u2026 ' + pct + '%') : 'Processing\u2026';
+          }
+        });
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(JSON.parse(xhr.responseText));
+          } else {
+            let msg = xhr.statusText;
+            try { msg = JSON.parse(xhr.responseText).detail || msg; } catch {}
+            reject(new Error(msg));
+          }
+        });
+        xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+        xhr.open('POST', '/ingest-media');
+        xhr.send(formData);
+      });
+
+      item.status = 'done';
+      item.title = result.title;
+      item.memories = result.memories_created;
+      updateIngestionFeed();
+      clearMediaFile();
+      if (btn) { btn.textContent = 'UPLOAD MEDIA'; btn.disabled = false; }
+    } catch (err) {
+      item.status = 'error';
+      item.error = err.message;
+      updateIngestionFeed();
+      if (btn) { btn.textContent = 'UPLOAD MEDIA'; btn.disabled = false; }
+      if (bar) bar.style.width = '0%';
+      if (text) text.textContent = 'Upload failed';
+    }
+  };
 
   // ─── Research ingest ─────────────────────────────────────────────────
   window.ingestSelected = async function () {

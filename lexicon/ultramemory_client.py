@@ -121,6 +121,39 @@ class UltramemoryClient:
         )
         return self._normalize_ingest_result({"memories": memories})
 
+    # ── Media ingest ─────────────────────────────────────────────────────
+
+    async def ingest_media(
+        self,
+        file_path: str,
+        session_key: str | None = None,
+        agent_id: str = "lexicon",
+    ) -> dict[str, Any]:
+        """Ingest a media file (image/audio/video) via the engine's multimodal pipeline."""
+        sk = session_key or self._make_session_key("media")
+
+        if self.is_remote:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=180.0) as client:
+                with open(file_path, "rb") as f:
+                    resp = await client.post(
+                        f"{self._remote_url}/api/ingest_media",
+                        files={"file": f},
+                        data={"session_key": sk, "agent_id": agent_id},
+                    )
+                resp.raise_for_status()
+                return resp.json()
+
+        engine = self._get_engine()
+        result = await asyncio.to_thread(
+            engine.ingest_media,
+            file_path=file_path,
+            session_key=sk,
+            agent_id=agent_id,
+        )
+        return result
+
     # ── Search ───────────────────────────────────────────────────────────
 
     async def search(
