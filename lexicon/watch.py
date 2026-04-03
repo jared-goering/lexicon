@@ -69,8 +69,17 @@ class WatchAgent:
         self._write_watches(remaining)
         return True
 
-    async def run_watch_cycle(self, topic: str, num_results: int = 10) -> tuple[ResearchRun, LintReport]:
-        research_run = await self.research_agent.research(topic, num_results=num_results, compile=True)
+    async def run_watch_cycle(
+        self,
+        topic: str,
+        num_results: int = 10,
+    ) -> tuple[ResearchRun, LintReport]:
+        """Run one research + lint cycle for a watched topic."""
+        research_run = await self.research_agent.research(
+            topic,
+            num_results=num_results,
+            compile=True,
+        )
         lint_report = await self.linter.lint(stale_days=7)
         self._mark_last_run(topic)
         return research_run, lint_report

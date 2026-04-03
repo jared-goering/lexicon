@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
 from typing import Any
-import re
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -355,17 +355,21 @@ class Exporter:
         if article["sources"]:
             sections.append(
                 '<section class="section"><span class="eyebrow">Sources</span>'
-                f'{self._render_source_list(article["sources"])}</section>'
+                f"{self._render_source_list(article['sources'])}</section>"
             )
         if article["related_topics"]:
             sections.append(
                 '<section class="section"><span class="eyebrow">Related Topics</span>'
-                f'{self._render_topic_pills(article["related_topics"])}</section>'
+                f"{self._render_topic_pills(article['related_topics'])}</section>"
             )
         if article["wikilinks"]:
+            wiki_pills = self._render_topic_pills(
+                article["wikilinks"],
+                css_class="pill wikilink-static",
+            )
             sections.append(
                 '<section class="section"><span class="eyebrow">Wikilinks</span>'
-                f'{self._render_topic_pills(article["wikilinks"], css_class="pill wikilink-static")}</section>'
+                f"{wiki_pills}</section>"
             )
 
         document = self._build_document(
@@ -381,22 +385,25 @@ class Exporter:
 
     def export_all(self, output_dir: Path | None = None) -> ExportResult:
         """Export the full knowledge base as a single self-contained HTML page."""
-        articles = [self._load_article(path.stem) for path in sorted(self.settings.articles_dir.glob("*.md"))]
+        articles = [
+            self._load_article(path.stem)
+            for path in sorted(self.settings.articles_dir.glob("*.md"))
+        ]
         toc_items = []
         article_sections = []
         total_words = 0
 
         for article in articles:
             anchor = self._anchor_id(article["slug"])
-            toc_items.append(
-                f'<a class="toc-item" href="#{anchor}">{escape(article["title"])}</a>'
-            )
+            toc_items.append(f'<a class="toc-item" href="#{anchor}">{escape(article["title"])}</a>')
             article_sections.append(
                 f'<article class="kb-article" id="{anchor}">'
                 f'<span class="eyebrow">Article</span>'
                 f'<h2 class="kb-article-title">{escape(article["title"])}</h2>'
-                f'<div class="prose">{self._markdown_to_html(article["body"], link_wikilinks=False)}</div>'
-                f'{self._render_article_meta_sections(article)}'
+                f'<div class="prose">'
+                f"{self._markdown_to_html(article['body'], link_wikilinks=False)}"
+                f"</div>"
+                f"{self._render_article_meta_sections(article)}"
                 "</article>"
             )
             total_words += len(article["body"].split())
@@ -410,7 +417,7 @@ class Exporter:
                 '<section class="section">'
                 '<span class="eyebrow">Table of Contents</span>'
                 f'<nav class="toc">{"".join(toc_items) or empty_state}</nav>'
-                '</section>'
+                "</section>"
                 f'<section class="section">{"".join(article_sections) or empty_state}</section>'
             ),
         )
@@ -437,7 +444,7 @@ class Exporter:
         body = content
         fm_match = re.match(r"^---\n(.*?)\n---\n*", content, re.DOTALL)
         if fm_match:
-            body = content[fm_match.end():]
+            body = content[fm_match.end() :]
             meta = self._parse_frontmatter(fm_match.group(1))
 
         title = str(meta.get("title") or self._title_from_body(body) or topic)
@@ -526,12 +533,16 @@ class Exporter:
         if article["sources"]:
             parts.append(
                 '<section class="section"><span class="eyebrow">Sources</span>'
-                f'{self._render_source_list(article["sources"])}</section>'
+                f"{self._render_source_list(article['sources'])}</section>"
             )
         if article["wikilinks"]:
+            wiki_pills = self._render_topic_pills(
+                article["wikilinks"],
+                css_class="pill wikilink-static",
+            )
             parts.append(
                 '<section class="section"><span class="eyebrow">Wikilinks</span>'
-                f'{self._render_topic_pills(article["wikilinks"], css_class="pill wikilink-static")}</section>'
+                f"{wiki_pills}</section>"
             )
         return "".join(parts)
 
@@ -577,7 +588,11 @@ class Exporter:
             if paragraph:
                 text = " ".join(part.strip() for part in paragraph if part.strip())
                 if text:
-                    blocks.append(f"<p>{self._inline_markdown(text, link_wikilinks=link_wikilinks)}</p>")
+                    rendered = self._inline_markdown(
+                        text,
+                        link_wikilinks=link_wikilinks,
+                    )
+                    blocks.append(f"<p>{rendered}</p>")
                 paragraph.clear()
 
         def flush_list() -> None:
@@ -618,9 +633,11 @@ class Exporter:
                 flush_paragraph()
                 flush_list()
                 level = len(heading.group(1))
-                blocks.append(
-                    f"<h{level}>{self._inline_markdown(heading.group(2).strip(), link_wikilinks=link_wikilinks)}</h{level}>"
+                rendered = self._inline_markdown(
+                    heading.group(2).strip(),
+                    link_wikilinks=link_wikilinks,
                 )
+                blocks.append(f"<h{level}>{rendered}</h{level}>")
                 continue
 
             bullet = re.match(r"^[-*]\s+(.*)$", line)
@@ -651,13 +668,13 @@ class Exporter:
 
     def _replace_wikilinks(self, text: str, link_wikilinks: bool) -> str:
         if link_wikilinks:
-            return re.sub(
-                r"\[\[([^\]]+)\]\]",
-                lambda match: (
-                    f'<a class="wikilink" href="#/article/{self._slugify(match.group(1))}">{escape(match.group(1))}</a>'
-                ),
-                text,
-            )
+
+            def _wikilink_anchor(match: re.Match[str]) -> str:
+                topic = match.group(1)
+                slug = self._slugify(topic)
+                return f'<a class="wikilink" href="#/article/{slug}">{escape(topic)}</a>'
+
+            return re.sub(r"\[\[([^\]]+)\]\]", _wikilink_anchor, text)
         return re.sub(
             r"\[\[([^\]]+)\]\]",
             lambda match: f'<span class="pill wikilink-static">[[{escape(match.group(1))}]]</span>',
@@ -731,7 +748,8 @@ class Exporter:
         return found
 
     def _extract_wikilinks(self, body: str) -> list[str]:
-        return self._dedupe_preserve_order(match.group(1).strip() for match in re.finditer(r"\[\[([^\]]+)\]\]", body))
+        matches = (m.group(1).strip() for m in re.finditer(r"\[\[([^\]]+)\]\]", body))
+        return self._dedupe_preserve_order(matches)
 
     def _title_from_body(self, body: str) -> str | None:
         match = re.search(r"^#\s+(.+)$", body, flags=re.MULTILINE)

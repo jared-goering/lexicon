@@ -3,17 +3,19 @@
 from __future__ import annotations
 
 import asyncio
-from collections import Counter
-from contextlib import asynccontextmanager
 import glob as globmod
 import logging
 import mimetypes
 import os
-from pathlib import Path
 import secrets
 import tempfile
-from typing import Any
+import threading
+import time
 import unicodedata
+from collections import Counter
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Any
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +34,7 @@ from lexicon.qa import QAAgent
 from lexicon.research import ResearchAgent
 from lexicon.ultramemory_client import UltramemoryClient
 from lexicon.utils import safe_slug
+
 
 def configure_logging() -> None:
     """Set up structured logging for the lexicon package."""
@@ -115,6 +118,7 @@ app.add_middleware(
 
 # --- Optional bearer-token auth for write endpoints ---
 
+
 async def require_auth(request: Request) -> None:
     """If LEXICON_API_TOKEN is set, require a matching Bearer token."""
     token = settings.api_token
@@ -123,11 +127,13 @@ async def require_auth(request: Request) -> None:
     auth = request.headers.get("authorization", "") or request.headers.get("Authorization", "")
     prefix = "bearer "
     if auth.lower().startswith(prefix):
-        provided = auth[len(prefix):].strip()
+        provided = auth[len(prefix) :].strip()
     else:
         provided = ""
     if not provided or not secrets.compare_digest(token, provided):
         raise HTTPException(status_code=401, detail="Invalid or missing API token")
+
+
 um_client = UltramemoryClient(settings)
 compiler = WikiCompiler(settings, client=um_client)
 linker = AutoLinker(settings)
@@ -141,9 +147,6 @@ url_connector = URLConnector(settings, client=um_client)
 _static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
-# Track last compilation timestamp for auto-refresh
-import time
-import threading
 _last_compiled_at: float = 0.0
 _processing_count: int = 0
 _processing_items: list[dict[str, str]] = []  # [{source, title}]
@@ -219,12 +222,14 @@ async def topics() -> dict[str, Any]:
     items = []
     for md_file in articles_dir.glob("*.md"):
         stat = md_file.stat()
-        items.append({
-            "slug": md_file.stem,
-            "title": md_file.stem.replace("-", " ").title(),
-            "size_bytes": stat.st_size,
-            "modified": stat.st_mtime,
-        })
+        items.append(
+            {
+                "slug": md_file.stem,
+                "title": md_file.stem.replace("-", " ").title(),
+                "size_bytes": stat.st_size,
+                "modified": stat.st_mtime,
+            }
+        )
     # Most recently modified first
     items.sort(key=lambda x: x["modified"], reverse=True)
     return {"topics": items}
@@ -247,13 +252,15 @@ async def graph() -> dict[str, Any]:
 
     for info in sorted(articles.values(), key=lambda item: item.title.casefold()):
         cluster_id = _cluster_id_for_article(info, cluster_labels)
-        nodes.append({
-            "id": info.slug,
-            "title": info.title,
-            "source_count": info.source_count,
-            "headings": info.headings,
-            "cluster": cluster_id,
-        })
+        nodes.append(
+            {
+                "id": info.slug,
+                "title": info.title,
+                "source_count": info.source_count,
+                "headings": info.headings,
+                "cluster": cluster_id,
+            }
+        )
 
         for link_title in info.outbound_links:
             target_slug = slug_by_title.get(link_title.casefold())
@@ -358,16 +365,14 @@ _MEDIA_ALLOWED_EXT = {".png", ".jpg", ".jpeg", ".mp3", ".wav", ".mp4", ".mov"}
 _MEDIA_IMAGE_EXT = {".png", ".jpg", ".jpeg"}
 _MEDIA_AUDIO_EXT = {".mp3", ".wav"}
 _MEDIA_VIDEO_EXT = {".mp4", ".mov"}
-_MAX_IMAGE = 20 * 1024 * 1024   # 20 MB
-_MAX_AUDIO = 25 * 1024 * 1024   # 25 MB
-_MAX_VIDEO = 50 * 1024 * 1024   # 50 MB
+_MAX_IMAGE = 20 * 1024 * 1024  # 20 MB
+_MAX_AUDIO = 25 * 1024 * 1024  # 25 MB
+_MAX_VIDEO = 50 * 1024 * 1024  # 50 MB
 
 
 @app.post("/api/ingest-media", dependencies=[Depends(require_auth)])
 async def ingest_media(file: UploadFile = File(...)) -> dict[str, Any]:
     """Ingest a media file (image/audio/video) into the knowledge base."""
-    import tempfile
-
     global _processing_count
 
     # Validate extension
@@ -375,7 +380,9 @@ async def ingest_media(file: UploadFile = File(...)) -> dict[str, Any]:
     if ext not in _MEDIA_ALLOWED_EXT:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type: {ext}. Allowed: {', '.join(sorted(_MEDIA_ALLOWED_EXT))}",
+            detail=(
+                f"Unsupported file type: {ext}. Allowed: {', '.join(sorted(_MEDIA_ALLOWED_EXT))}"
+            ),
         )
 
     # Determine size limit
@@ -389,19 +396,26 @@ async def ingest_media(file: UploadFile = File(...)) -> dict[str, Any]:
     # Reject oversized uploads early via Content-Length header
     if file.size is not None and file.size > max_size:
         max_mb = max_size // (1024 * 1024)
-        raise HTTPException(status_code=413, detail=f"File too large. Max {max_mb}MB for {ext} files.")
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Max {max_mb}MB for {ext} files.",
+        )
 
     # Save to temp file and validate size during streaming
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+    tmp_path = Path(tmp.name)
     try:
         size = 0
         while chunk := await file.read(1024 * 1024):
             size += len(chunk)
             if size > max_size:
                 tmp.close()
-                Path(tmp.name).unlink(missing_ok=True)
+                tmp_path.unlink(missing_ok=True)
                 max_mb = max_size // (1024 * 1024)
-                raise HTTPException(status_code=413, detail=f"File too large. Max {max_mb}MB for {ext} files.")
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File too large. Max {max_mb}MB for {ext} files.",
+                )
             tmp.write(chunk)
         tmp.close()
 
@@ -409,37 +423,8 @@ async def ingest_media(file: UploadFile = File(...)) -> dict[str, Any]:
         with _processing_lock:
             _processing_count += 1
             _processing_items.append(item)
-
         try:
-            result = await um_client.ingest_media(
-                file_path=tmp.name,
-                session_key=um_client._make_session_key("media"),
-                agent_id="uk-api",
-            )
-
-            # Auto-compile article from the generated description
-            compiled_article = None
-            description = result.get("description", "")
-            if description.strip():
-                title_hint = Path(file.filename or "media").stem.replace("-", " ").replace("_", " ").title()
-                chunks = [{"text": description, "source": file.filename or "media-upload"}]
-                try:
-                    path = await compiler.compile_topic(title_hint, chunks)
-                    linker.generate_backlinks()
-                    linker.rebuild_index()
-                    compiled_article = str(path)
-                    global _last_compiled_at
-                    _last_compiled_at = time.time()
-                except Exception:
-                    pass  # Compilation is best-effort
-
-            return {
-                "status": "ingested",
-                "source": file.filename,
-                "title": result.get("description", file.filename)[:120],
-                "memories_created": 1,
-                "compiled": compiled_article,
-            }
+            return await _do_ingest_media(tmp_path, file.filename, item)
         finally:
             with _processing_lock:
                 _processing_count = max(0, _processing_count - 1)
@@ -448,7 +433,42 @@ async def ingest_media(file: UploadFile = File(...)) -> dict[str, Any]:
                 except ValueError:
                     pass
     finally:
-        Path(tmp.name).unlink(missing_ok=True)
+        tmp_path.unlink(missing_ok=True)
+
+
+async def _do_ingest_media(
+    tmp_path: Path, filename: str | None, item: dict[str, str]
+) -> dict[str, Any]:
+    """Internal media ingest implementation."""
+    global _last_compiled_at
+
+    result = await um_client.ingest_media(
+        file_path=str(tmp_path),
+        session_key=um_client._make_session_key("media"),
+        agent_id="uk-api",
+    )
+
+    compiled_article = None
+    description = result.get("description", "")
+    if description.strip():
+        title_hint = Path(filename or "media").stem.replace("-", " ").replace("_", " ").title()
+        chunks = [{"text": description, "source": filename or "media-upload"}]
+        try:
+            path = await compiler.compile_topic(title_hint, chunks)
+            linker.generate_backlinks()
+            linker.rebuild_index()
+            compiled_article = str(path)
+            _last_compiled_at = time.time()
+        except Exception:
+            pass  # Compilation is best-effort
+
+    return {
+        "status": "ingested",
+        "source": filename,
+        "title": result.get("description", filename)[:120],
+        "memories_created": 1,
+        "compiled": compiled_article,
+    }
 
 
 @app.post("/api/search")
@@ -480,7 +500,9 @@ async def ask(req: AskRequest) -> dict[str, Any]:
         article_path = settings.articles_dir / f"{slug}.md"
         if article_path.exists():
             article_text = article_path.read_text()[:4000]  # Cap context size
-            question = f"[Context from article '{safe_slug}':\n{article_text}\n]\n\nQuestion: {req.question}"
+            question = (
+                f"[Context from article '{slug}':\n{article_text}\n]\n\nQuestion: {req.question}"
+            )
     response = await qa.answer_or_research(question)
     return {
         "answer": response.answer,
@@ -528,12 +550,14 @@ async def list_articles() -> dict[str, Any]:
     articles = []
     for md_file in sorted(articles_dir.glob("*.md")):
         stat = md_file.stat()
-        articles.append({
-            "slug": md_file.stem,
-            "title": md_file.stem.replace("-", " ").title(),
-            "size_bytes": stat.st_size,
-            "modified": stat.st_mtime,
-        })
+        articles.append(
+            {
+                "slug": md_file.stem,
+                "title": md_file.stem.replace("-", " ").title(),
+                "size_bytes": stat.st_size,
+                "modified": stat.st_mtime,
+            }
+        )
     return {"articles": articles}
 
 
@@ -661,7 +685,11 @@ async def download_export(filename: str) -> FileResponse:
         raise HTTPException(status_code=404, detail=f"Export not found: {filename}")
 
     media_type, _ = mimetypes.guess_type(target.name)
-    return FileResponse(str(target), media_type=media_type or "application/octet-stream", filename=target.name)
+    return FileResponse(
+        str(target),
+        media_type=media_type or "application/octet-stream",
+        filename=target.name,
+    )
 
 
 @app.post("/api/snapshot")
@@ -672,7 +700,11 @@ async def snapshot_article(req: SnapshotRequest) -> FileResponse:
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"Article not found: {req.slug}") from exc
 
-    return FileResponse(str(result.output_path), media_type="text/html", filename=result.output_path.name)
+    return FileResponse(
+        str(result.output_path),
+        media_type="text/html",
+        filename=result.output_path.name,
+    )
 
 
 @app.get("/api/snapshot/{slug}")
@@ -684,14 +716,22 @@ async def snapshot_article_direct(slug: str) -> FileResponse:
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"Article not found: {slug}") from exc
 
-    return FileResponse(str(result.output_path), media_type="text/html", filename=result.output_path.name)
+    return FileResponse(
+        str(result.output_path),
+        media_type="text/html",
+        filename=result.output_path.name,
+    )
 
 
 @app.post("/api/export-all")
 async def export_all_articles() -> FileResponse:
     """Generate a self-contained HTML export of the entire knowledge base."""
     result = exporter.export_all()
-    return FileResponse(str(result.output_path), media_type="text/html", filename=result.output_path.name)
+    return FileResponse(
+        str(result.output_path),
+        media_type="text/html",
+        filename=result.output_path.name,
+    )
 
 
 def _build_graph_cluster_labels(articles: dict[str, Any]) -> list[str]:
@@ -702,7 +742,10 @@ def _build_graph_cluster_labels(articles: dict[str, Any]) -> list[str]:
         if info.headings and info.headings[0].strip()
     )
     if len(heading_counts) >= 4:
-        top_headings = sorted(heading_counts.items(), key=lambda item: (-item[1], item[0].casefold()))
+        top_headings = sorted(
+            heading_counts.items(),
+            key=lambda item: (-item[1], item[0].casefold()),
+        )
         return [heading for heading, _count in top_headings[:4]]
     return ["A-F", "G-L", "M-R", "S-Z"]
 

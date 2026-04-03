@@ -10,12 +10,33 @@ from lexicon.ultramemory_client import UltramemoryClient
 
 # File types we can ingest directly as text
 TEXT_EXTENSIONS = {
-    ".txt", ".md", ".markdown", ".rst", ".org",
-    ".py", ".js", ".ts", ".go", ".rs", ".java", ".c", ".cpp", ".h",
-    ".json", ".yaml", ".yml", ".toml", ".xml", ".csv",
-    ".html", ".htm",
-    ".sh", ".bash", ".zsh",
-    ".tex", ".bib",
+    ".txt",
+    ".md",
+    ".markdown",
+    ".rst",
+    ".org",
+    ".py",
+    ".js",
+    ".ts",
+    ".go",
+    ".rs",
+    ".java",
+    ".c",
+    ".cpp",
+    ".h",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".xml",
+    ".csv",
+    ".html",
+    ".htm",
+    ".sh",
+    ".bash",
+    ".zsh",
+    ".tex",
+    ".bib",
 }
 
 # Extensions that need special handling (future)
@@ -114,14 +135,24 @@ class FileConnector:
         if not path.is_dir():
             raise NotADirectoryError(f"Not a directory: {path}")
 
-        skip_dirs = {".git", "__pycache__", "node_modules", ".venv", "venv", ".tox", "dist", "build"}
+        skip_dirs = {
+            ".git",
+            "__pycache__",
+            "node_modules",
+            ".venv",
+            "venv",
+            ".tox",
+            "dist",
+            "build",
+        }
         chunks = []
 
         pattern = "**/*" if recursive else "*"
         for file_path in sorted(path.glob(pattern)):
             if not file_path.is_file():
                 continue
-            if any(part.startswith(".") or part in skip_dirs for part in file_path.relative_to(path).parts):
+            rel_parts = file_path.relative_to(path).parts
+            if any(p.startswith(".") or p in skip_dirs for p in rel_parts):
                 continue
             if file_path.suffix.lower() not in TEXT_EXTENSIONS | BINARY_EXTENSIONS:
                 continue
@@ -140,8 +171,6 @@ class FileConnector:
         Placeholder for filesystem watching — will use watchdog or similar.
         For now, this is called periodically by the CLI watch command.
         """
-        # TODO: Implement with watchdog for real-time monitoring
-        # For now, the CLI watch command calls ingest_folder periodically
         raise NotImplementedError(
             "Real-time folder watching requires the watchdog package. "
             "Use 'uk watch --folder <path>' for polling-based watching."

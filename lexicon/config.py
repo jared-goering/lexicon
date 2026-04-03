@@ -22,12 +22,13 @@ class Settings:
     # Ultramemory — lexicon uses its OWN database.
     # Set LEXICON_ULTRAMEMORY_URL to point at an external server, or leave blank to use
     # the embedded engine with a dedicated DB at LEXICON_ULTRAMEMORY_DB_PATH.
-    ultramemory_url: str = field(
-        default_factory=lambda: os.getenv("LEXICON_ULTRAMEMORY_URL", "")
-    )
+    ultramemory_url: str = field(default_factory=lambda: os.getenv("LEXICON_ULTRAMEMORY_URL", ""))
     ultramemory_db_path: Path = field(
         default_factory=lambda: Path(
-            os.getenv("LEXICON_ULTRAMEMORY_DB_PATH", os.path.join(str(Path.home()), ".lexicon", "memory.db"))
+            os.getenv(
+                "LEXICON_ULTRAMEMORY_DB_PATH",
+                os.path.join(str(Path.home()), ".lexicon", "memory.db"),
+            )
         )
     )
     ultramemory_collection: str = field(
@@ -35,16 +36,12 @@ class Settings:
     )
 
     # Knowledge base output
-    kb_dir: Path = field(
-        default_factory=lambda: Path(os.getenv("LEXICON_KB_DIR", "./kb"))
-    )
+    kb_dir: Path = field(default_factory=lambda: Path(os.getenv("LEXICON_KB_DIR", "./kb")))
     articles_dir: Path = field(init=False)
     index_path: Path = field(init=False)
 
     # Exa web search
-    exa_api_key: str = field(
-        default_factory=lambda: os.getenv("EXA_API_KEY", "")
-    )
+    exa_api_key: str = field(default_factory=lambda: os.getenv("EXA_API_KEY", ""))
 
     # Compilation
     compile_frequency_minutes: int = field(
@@ -59,9 +56,7 @@ class Settings:
     port: int = field(default_factory=lambda: int(os.getenv("LEXICON_PORT", "8899")))
 
     # Logging
-    log_level: str = field(
-        default_factory=lambda: os.getenv("LEXICON_LOG_LEVEL", "INFO")
-    )
+    log_level: str = field(default_factory=lambda: os.getenv("LEXICON_LOG_LEVEL", "INFO"))
 
     # Optional API token — if set, destructive/expensive endpoints require
     # Authorization: Bearer <token>.  Leave empty to disable auth (local dev).

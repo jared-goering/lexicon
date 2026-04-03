@@ -39,7 +39,12 @@ class TestScanArticles:
         assert articles == {}
 
     def test_single_article(self, linker: AutoLinker, tmp_settings: Settings):
-        _write_article(tmp_settings.articles_dir, "machine-learning", "Machine Learning", "ML is great.")
+        _write_article(
+            tmp_settings.articles_dir,
+            "machine-learning",
+            "Machine Learning",
+            "ML is great.",
+        )
         articles = linker.scan_articles()
         assert "machine-learning" in articles
         assert articles["machine-learning"].title == "Machine Learning"

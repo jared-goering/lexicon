@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
-import asyncio
 import pytest
 
 from lexicon.compiler import WikiCompiler
@@ -101,7 +101,11 @@ class TestExtractManualSections:
 
 
 class TestUpdateArticle:
-    def test_update_article_preserves_frontmatter_header(self, compiler: WikiCompiler, tmp_settings: Settings):
+    def test_update_article_preserves_frontmatter_header(
+        self,
+        compiler: WikiCompiler,
+        tmp_settings: Settings,
+    ):
         article_path = tmp_settings.articles_dir / "test-topic.md"
         existing = "---\ntitle: Test Topic\n---\n\n# Existing"
         chunks = [{"text": "New facts", "source": "https://example.com"}]

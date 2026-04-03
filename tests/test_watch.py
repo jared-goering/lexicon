@@ -47,7 +47,10 @@ def test_watch_agent_persists_list_and_stop(tmp_settings: Settings, tmp_path: Pa
     assert [watch.topic for watch in remaining] == ["vector dbs"]
 
 
-def test_run_watch_cycle_runs_research_lint_and_updates_last_run(tmp_settings: Settings, tmp_path: Path):
+def test_run_watch_cycle_runs_research_lint_and_updates_last_run(
+    tmp_settings: Settings,
+    tmp_path: Path,
+):
     research_agent = MagicMock(spec=ResearchAgent)
     research_agent.research = AsyncMock(
         return_value=ResearchRun(topic="llm", num_results=10, compiled=True)
@@ -72,7 +75,11 @@ def test_run_watch_cycle_runs_research_lint_and_updates_last_run(tmp_settings: S
     assert agent.list_watches()[0].last_run_at is not None
 
 
-def test_watch_loop_runs_until_watch_is_removed(tmp_settings: Settings, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_watch_loop_runs_until_watch_is_removed(
+    tmp_settings: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
     agent = WatchAgent(
         tmp_settings,
         research_agent=MagicMock(spec=ResearchAgent),

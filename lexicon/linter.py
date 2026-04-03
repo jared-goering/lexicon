@@ -26,6 +26,7 @@ Excerpt B (from "{source_b}"):
 {text_b}
 """
 
+
 @dataclass
 class LintIssue:
     """A single issue found by the linter."""
@@ -43,9 +44,7 @@ class LintReport:
 
     issues: list[LintIssue] = field(default_factory=list)
     articles_checked: int = 0
-    timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
-    )
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     @property
     def error_count(self) -> int:
@@ -107,14 +106,16 @@ class KBLinter:
         for md_file in sorted(articles_dir.glob("*.md")):
             content = md_file.read_text(encoding="utf-8")
             meta = self._parse_frontmatter(content)
-            articles.append({
-                "path": md_file,
-                "slug": md_file.stem,
-                "content": content,
-                "title": meta.get("title", md_file.stem),
-                "compiled": meta.get("compiled", ""),
-                "chunks": int(meta.get("chunks", 0)),
-            })
+            articles.append(
+                {
+                    "path": md_file,
+                    "slug": md_file.stem,
+                    "content": content,
+                    "title": meta.get("title", md_file.stem),
+                    "compiled": meta.get("compiled", ""),
+                    "chunks": int(meta.get("chunks", 0)),
+                }
+            )
         return articles
 
     def _check_staleness(
@@ -191,7 +192,10 @@ class KBLinter:
                     LintIssue(
                         severity="info",
                         category="gap",
-                        message=f"Article based on only {article['chunks']} chunks — may need more sources",
+                        message=(
+                            f"Article based on only {article['chunks']} chunks"
+                            " — may need more sources"
+                        ),
                         article=article["title"],
                     )
                 )
@@ -211,15 +215,31 @@ class KBLinter:
             entity_name = entity.get("entity_name") or entity.get("name") or ""
             if not entity_name:
                 continue
-            matched_articles = [a for a in articles if self._mentions_entity(a["content"], entity_name)]
+            matched_articles = [
+                a for a in articles if self._mentions_entity(a["content"], entity_name)
+            ]
             for i, article_a in enumerate(matched_articles):
-                for article_b in matched_articles[i + 1:]:
-                    pair_key = tuple(sorted((entity_name, article_a["slug"], article_b["slug"])))
+                for article_b in matched_articles[i + 1 :]:
+                    pair_key = tuple(
+                        sorted(
+                            (
+                                entity_name,
+                                article_a["slug"],
+                                article_b["slug"],
+                            )
+                        )
+                    )
                     if pair_key in checked_pairs:
                         continue
                     checked_pairs.add(pair_key)
-                    excerpt_a = self._extract_entity_excerpt(article_a["content"], entity_name)
-                    excerpt_b = self._extract_entity_excerpt(article_b["content"], entity_name)
+                    excerpt_a = self._extract_entity_excerpt(
+                        article_a["content"],
+                        entity_name,
+                    )
+                    excerpt_b = self._extract_entity_excerpt(
+                        article_b["content"],
+                        entity_name,
+                    )
                     if not excerpt_a or not excerpt_b:
                         continue
                     try:
@@ -273,7 +293,7 @@ class KBLinter:
                 LintIssue(
                     severity=severity,
                     category="gap",
-                    message=f"Entity mentioned without a dedicated article: {entity_name}",
+                    message=(f"Entity mentioned without a dedicated article: {entity_name}"),
                     details=f"Mentions: {mention_count}",
                 )
             )
@@ -346,7 +366,8 @@ class KBLinter:
     def _extract_entity_excerpt(content: str, entity: str) -> str:
         body = re.sub(r"^---\n.*?\n---\n*", "", content, flags=re.DOTALL)
         sentences = re.split(r"(?<=[.!?])\s+", body)
-        matched = [s.strip() for s in sentences if re.search(rf"\b{re.escape(entity)}\b", s, re.IGNORECASE)]
+        pattern = re.compile(rf"\b{re.escape(entity)}\b", re.IGNORECASE)
+        matched = [s.strip() for s in sentences if pattern.search(s)]
         if matched:
             return " ".join(matched[:3])
         metadata = extract_research_metadata(content)

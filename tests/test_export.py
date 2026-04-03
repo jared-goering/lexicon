@@ -118,9 +118,13 @@ Connects to [[Vector Databases]].
     assert "Retrieval-Augmented Generation" in full_export_html
 
 
-def test_export_routes_serve_generated_files(tmp_settings: Settings, monkeypatch: pytest.MonkeyPatch):
-    fastapi = pytest.importorskip("fastapi")
+def test_export_routes_serve_generated_files(
+    tmp_settings: Settings,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
+
     from lexicon import server
 
     _write_article(

@@ -19,7 +19,8 @@ class UltramemoryClient:
 
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
-        self._remote_url = self.settings.ultramemory_url.rstrip("/") if self.settings.ultramemory_url else ""
+        url = self.settings.ultramemory_url
+        self._remote_url = url.rstrip("/") if url else ""
         self._engine = None  # lazy-init for embedded mode
 
     @property
@@ -40,7 +41,7 @@ class UltramemoryClient:
 
             db_path = str(self.settings.ultramemory_db_path)
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            model = os.getenv("UK_LLM_MODEL", None)
+            model = os.getenv("LEXICON_EMBEDDING_MODEL", None)
             self._engine = MemoryEngine(db_path=db_path, model_name=model)
         return self._engine
 
@@ -109,7 +110,12 @@ class UltramemoryClient:
         if self.is_remote:
             import httpx
 
-            payload: dict[str, Any] = {"text": text, "session_key": sk, "agent_id": agent_id, "chunk_size": chunk_size}
+            payload: dict[str, Any] = {
+                "text": text,
+                "session_key": sk,
+                "agent_id": agent_id,
+                "chunk_size": chunk_size,
+            }
             if document_date:
                 payload["document_date"] = document_date
             async with httpx.AsyncClient(timeout=60.0) as client:
@@ -210,7 +216,11 @@ class UltramemoryClient:
 
         engine = self._get_engine()
         stats = await asyncio.to_thread(engine.get_stats)
-        return {"status": "ok", "mode": "embedded", "total_memories": stats.get("total_memories", 0)}
+        return {
+            "status": "ok",
+            "mode": "embedded",
+            "total_memories": stats.get("total_memories", 0),
+        }
 
     async def entities(self, min_mentions: int = 1) -> list[dict[str, Any]]:
         """List entities with mention counts."""

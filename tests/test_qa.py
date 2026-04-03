@@ -122,4 +122,8 @@ class TestAnswerOrResearch:
         response = asyncio.run(agent.answer_or_research("test question"))
 
         assert response.answer == "Improved answer"
-        agent.research_agent.research.assert_awaited_once_with("test question", num_results=5, compile=True)
+        agent.research_agent.research.assert_awaited_once_with(
+            "test question",
+            num_results=5,
+            compile=True,
+        )

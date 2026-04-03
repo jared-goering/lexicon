@@ -129,13 +129,15 @@ class QAAgent:
         for r in results:
             text = r.get("content", "")
             metadata = extract_research_metadata(text)
-            chunks.append({
-                "text": text,
-                "source": metadata["url"] or r.get("source_session", "ultramemory"),
-                "title": metadata["title"] or r.get("category", "Knowledge Base"),
-                "score": r.get("similarity", 0.0),
-                "url": metadata["url"] or r.get("source_session", "ultramemory"),
-            })
+            chunks.append(
+                {
+                    "text": text,
+                    "source": metadata["url"] or r.get("source_session", "ultramemory"),
+                    "title": metadata["title"] or r.get("category", "Knowledge Base"),
+                    "score": r.get("similarity", 0.0),
+                    "url": metadata["url"] or r.get("source_session", "ultramemory"),
+                }
+            )
         return chunks
 
     def _build_context(self, chunks: list[dict[str, Any]]) -> str:

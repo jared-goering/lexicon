@@ -11,15 +11,17 @@ from urllib.parse import urlparse
 
 import httpx
 
-_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
-
-# Matches twitter.com and x.com tweet URLs
-_TWEET_RE = _re.compile(
-    r"^https?://(?:(?:www\.)?(?:twitter|x)\.com)/(\w+)/status/(\d+)"
-)
-
 from lexicon.config import Settings, get_settings
 from lexicon.ultramemory_client import UltramemoryClient
+
+_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/130.0.0.0 Safari/537.36"
+)
+
+# Matches twitter.com and x.com tweet URLs
+_TWEET_RE = _re.compile(r"^https?://(?:(?:www\.)?(?:twitter|x)\.com)/(\w+)/status/(\d+)")
 
 
 def _is_private_ip(hostname: str) -> bool:
@@ -159,7 +161,8 @@ class URLConnector:
                                 f"Title: {page_data['title']}\n\n"
                                 f"{page_data['text']}"
                             )
-                            if not linked_title and page_data["title"] != urlparse(link["url"]).netloc:
+                            link_host = urlparse(link["url"]).netloc
+                            if not linked_title and page_data["title"] != link_host:
                                 linked_title = page_data["title"]
                     except Exception:
                         pass
@@ -178,7 +181,7 @@ class URLConnector:
                     "type": "tweet",
                     "domain": urlparse(url).netloc,
                     "author": author_name,
-                    "linked_urls": [l["url"] for l in resolved],
+                    "linked_urls": [r["url"] for r in resolved],
                 },
             }
         except (httpx.HTTPError, ValueError, KeyError):
@@ -277,7 +280,10 @@ class URLConnector:
                 "text": "",
                 "source": url,
                 "title": "Tweet (extraction failed)",
-                "metadata": {"type": "tweet", "error": "Could not extract tweet content via fxtwitter or oembed"},
+                "metadata": {
+                    "type": "tweet",
+                    "error": "Could not extract tweet content via fxtwitter or oembed",
+                },
                 "ultramemory": {"memories_created": 0, "session_key": ""},
             }
         else:
@@ -316,12 +322,14 @@ class URLConnector:
                     extracted = self._extract(response.text, url)
                     results.append(extracted)
                 except httpx.HTTPError as e:
-                    results.append({
-                        "text": "",
-                        "source": url,
-                        "title": f"Error fetching {url}",
-                        "metadata": {"type": "url", "error": str(e)},
-                    })
+                    results.append(
+                        {
+                            "text": "",
+                            "source": url,
+                            "title": f"Error fetching {url}",
+                            "metadata": {"type": "url", "error": str(e)},
+                        }
+                    )
             return results
 
     async def _fetch(self, url: str) -> str:

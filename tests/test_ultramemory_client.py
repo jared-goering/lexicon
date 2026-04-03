@@ -110,11 +110,14 @@ class TestSearch:
         settings.ultramemory_url = ""
         client = UltramemoryClient(settings)
 
-        with patch.object(client, "_get_engine") as mock_get_engine, patch(
-            "lexicon.ultramemory_client.asyncio.to_thread",
-            new_callable=AsyncMock,
-            return_value=[{"content": "result"}],
-        ) as mock_to_thread:
+        with (
+            patch.object(client, "_get_engine") as mock_get_engine,
+            patch(
+                "lexicon.ultramemory_client.asyncio.to_thread",
+                new_callable=AsyncMock,
+                return_value=[{"content": "result"}],
+            ) as mock_to_thread,
+        ):
             results = asyncio.run(client.search("test query", top_k=5))
 
         assert results == [{"content": "result"}]
@@ -143,11 +146,14 @@ class TestStats:
         settings.ultramemory_url = ""
         client = UltramemoryClient(settings)
 
-        with patch.object(client, "_get_engine") as mock_get_engine, patch(
-            "lexicon.ultramemory_client.asyncio.to_thread",
-            new_callable=AsyncMock,
-            return_value={"total_memories": 42},
-        ) as mock_to_thread:
+        with (
+            patch.object(client, "_get_engine") as mock_get_engine,
+            patch(
+                "lexicon.ultramemory_client.asyncio.to_thread",
+                new_callable=AsyncMock,
+                return_value={"total_memories": 42},
+            ) as mock_to_thread,
+        ):
             stats = asyncio.run(client.stats())
 
         assert stats["total_memories"] == 42
@@ -187,11 +193,14 @@ class TestEntities:
         settings.ultramemory_url = ""
         client = UltramemoryClient(settings)
 
-        with patch.object(client, "_get_engine") as mock_get_engine, patch(
-            "lexicon.ultramemory_client.asyncio.to_thread",
-            new_callable=AsyncMock,
-            return_value=[{"entity_name": "Python"}],
-        ) as mock_to_thread:
+        with (
+            patch.object(client, "_get_engine") as mock_get_engine,
+            patch(
+                "lexicon.ultramemory_client.asyncio.to_thread",
+                new_callable=AsyncMock,
+                return_value=[{"entity_name": "Python"}],
+            ) as mock_to_thread,
+        ):
             entities = asyncio.run(client.entities(min_mentions=2))
 
         assert entities == [{"entity_name": "Python"}]

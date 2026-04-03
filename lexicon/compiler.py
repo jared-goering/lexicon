@@ -138,11 +138,13 @@ class WikiCompiler:
             for cid in chunk_ids:
                 if isinstance(cid, int) and 0 <= cid < len(all_memories):
                     mem = all_memories[cid]
-                    chunks.append({
-                        "text": mem.get("content", ""),
-                        "source": mem.get("source_session", "ultramemory"),
-                        "id": mem.get("id"),
-                    })
+                    chunks.append(
+                        {
+                            "text": mem.get("content", ""),
+                            "source": mem.get("source_session", "ultramemory"),
+                            "id": mem.get("id"),
+                        }
+                    )
             if chunks:
                 topics[slug] = {"title": title, "chunks": chunks}
 

@@ -12,7 +12,6 @@ from lexicon.connectors.web_search import ExaConnector, SearchResult
 from lexicon.linker import AutoLinker
 from lexicon.ultramemory_client import UltramemoryClient
 
-
 RESEARCH_TITLE_RE = re.compile(r"^Source Title:\s*(.+)$", re.MULTILINE)
 RESEARCH_URL_RE = re.compile(r"^Source URL:\s*(.+)$", re.MULTILINE)
 RESEARCH_DATE_RE = re.compile(r"^Published Date:\s*(.+)$", re.MULTILINE)

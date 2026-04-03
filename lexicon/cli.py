@@ -1,4 +1,4 @@
-"""Click CLI — the 'uk' command for managing your knowledge base."""
+"""Click CLI — the lexicon CLI (uk) for managing your knowledge base."""
 
 from __future__ import annotations
 
@@ -29,7 +29,12 @@ def cli():
 @cli.command()
 @click.argument("source")
 @click.option("--title", "-t", help="Title for the ingested content")
-@click.option("--type", "source_type", type=click.Choice(["url", "file", "text", "folder"]), help="Source type (auto-detected if omitted)")
+@click.option(
+    "--type",
+    "source_type",
+    type=click.Choice(["url", "file", "text", "folder"]),
+    help="Source type (auto-detected if omitted)",
+)
 def ingest(source: str, title: str | None, source_type: str | None):
     """Ingest a URL, file, folder, or raw text into the knowledge base.
 
@@ -100,11 +105,13 @@ def ingest(source: str, title: str | None, source_type: str | None):
 
     elif source_type == "text":
         session_key = client._make_session_key("text")
-        result = run_async(client.ingest(
-            text=source,
-            session_key=session_key,
-            agent_id="uk-text",
-        ))
+        result = run_async(
+            client.ingest(
+                text=source,
+                session_key=session_key,
+                agent_id="uk-text",
+            )
+        )
         click.echo(f"Ingested: {title or 'Quick note'}")
         click.echo(f"  Length: {len(source)} chars")
         click.echo(f"  Memories created: {result.get('memories_created', 0)}")
@@ -146,7 +153,12 @@ def search(query: str, num: int):
 @cli.command()
 @click.argument("query")
 @click.option("--num-results", "-n", default=10, help="Number of results")
-@click.option("--compile/--no-compile", "compile_results", default=True, help="Compile and link after research")
+@click.option(
+    "--compile/--no-compile",
+    "compile_results",
+    default=True,
+    help="Compile and link after research",
+)
 def research(query: str, num_results: int, compile_results: bool):
     """Research a topic via Exa web search and ingest results.
 
@@ -209,7 +221,7 @@ def ask(question: str):
         click.echo("\n--- Knowledge gap detected ---")
         click.echo("Suggested research queries:")
         for q in response.suggested_queries:
-            click.echo(f"  uk research \"{q}\"")
+            click.echo(f'  uk research "{q}"')
 
 
 @cli.command("compile")
@@ -286,7 +298,14 @@ def lint(stale_days: int):
 
 @cli.command("export")
 @click.argument("topic")
-@click.option("--format", "-f", "fmt", type=click.Choice(["slides", "report", "briefing"]), default="report", help="Export format")
+@click.option(
+    "--format",
+    "-f",
+    "fmt",
+    type=click.Choice(["slides", "report", "briefing"]),
+    default="report",
+    help="Export format",
+)
 @click.option("--output", "-o", type=click.Path(), help="Output directory")
 def export_article(topic: str, fmt: str, output: str | None):
     """Export an article as slides, report, or briefing.
@@ -304,7 +323,11 @@ def export_article(topic: str, fmt: str, output: str | None):
     output_dir = Path(output) if output else None
 
     try:
-        export_fn = {"slides": exp.to_slides, "report": exp.to_report, "briefing": exp.to_briefing}[fmt]
+        export_fn = {
+            "slides": exp.to_slides,
+            "report": exp.to_report,
+            "briefing": exp.to_briefing,
+        }[fmt]
         result = export_fn(topic, output_dir)
         click.echo(f"Exported: {result.output_path}")
         click.echo(f"  Format: {result.format}")
@@ -355,7 +378,10 @@ def watch(topic: str | None, interval: int, list_watches: bool, stop_topic: str 
             return
         for watch_entry in watches:
             last_run = watch_entry.last_run_at or "never"
-            click.echo(f"{watch_entry.topic} | every {watch_entry.interval_minutes} min | last run: {last_run}")
+            click.echo(
+                f"{watch_entry.topic} | every {watch_entry.interval_minutes}"
+                f" min | last run: {last_run}"
+            )
         return
 
     if stop_topic:

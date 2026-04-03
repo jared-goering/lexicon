@@ -35,7 +35,9 @@ class ExaConnector:
     def client(self) -> Any:
         if self._client is None:
             if not self.settings.exa_api_key:
-                raise ValueError("EXA_API_KEY is required for web search. Set it in your environment.")
+                raise ValueError(
+                    "EXA_API_KEY is required for web search. Set it in your environment."
+                )
             from exa_py import Exa
 
             self._client = Exa(api_key=self.settings.exa_api_key)
@@ -52,7 +54,6 @@ class ExaConnector:
             query=query,
             num_results=num_results,
             text=True,
-
         )
 
         results = []
@@ -74,7 +75,11 @@ class ExaConnector:
                 continue
         return results
 
-    async def auto_enrich(self, topic: str, existing_sources: list[str] | None = None) -> list[SearchResult]:
+    async def auto_enrich(
+        self,
+        topic: str,
+        existing_sources: list[str] | None = None,
+    ) -> list[SearchResult]:
         """Automatically find new sources for a topic, excluding known URLs.
 
         Useful for periodically enriching articles with fresh information.

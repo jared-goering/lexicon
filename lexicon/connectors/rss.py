@@ -32,7 +32,11 @@ class FeedState:
 
     def save(self, path: Path) -> None:
         data = {
-            url: {"title": info.title, "last_checked": info.last_checked, "seen_ids": list(info.seen_ids)}
+            url: {
+                "title": info.title,
+                "last_checked": info.last_checked,
+                "seen_ids": list(info.seen_ids),
+            }
             for url, info in self.feeds.items()
         }
         path.write_text(json.dumps(data, indent=2), encoding="utf-8")
