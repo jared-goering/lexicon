@@ -40,7 +40,11 @@
     if (h === '/' || h === '') return { view: 'home' };
     if (h === '/graph') return { view: 'graph' };
     if (h.startsWith('/article/')) return { view: 'article', slug: decodeURIComponent(h.slice(9)) };
-    if (h.startsWith('/ask/')) return { view: 'ask', question: decodeURIComponent(h.slice(5)) };
+    if (h.startsWith('/ask/')) {
+      const [path, qs] = h.slice(5).split('?');
+      const params = new URLSearchParams(qs || '');
+      return { view: 'ask', question: decodeURIComponent(path), articleCtx: params.get('ctx') || null };
+    }
     if (h.startsWith('/research/')) return { view: 'research', query: decodeURIComponent(h.slice(10)) };
     return { view: 'home' };
   }
@@ -60,7 +64,7 @@
       case 'home': await renderHome(); break;
       case 'graph': await renderGraph(routeToken); break;
       case 'article': await renderArticle(route.slug); break;
-      case 'ask': await renderAsk(route.question); break;
+      case 'ask': await renderAsk(route.question, route.articleCtx); break;
       case 'research': await renderResearch(route.query); break;
       default: await renderHome();
     }
@@ -521,7 +525,7 @@
   }
 
   // ─── Q&A View ────────────────────────────────────────────────────────
-  async function renderAsk(question) {
+  async function renderAsk(question, articleCtx) {
     app().innerHTML = `
       ${headerHTML(true, false)}
       <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
@@ -551,7 +555,9 @@
     );
 
     try {
-      const data = await api('POST', '/ask', { question });
+      const payload = { question };
+      if (articleCtx) payload.article_slug = articleCtx;
+      const data = await api('POST', '/ask', payload);
       statusTimers.forEach(clearTimeout);
       const answer = data.answer || 'No answer available.';
       const citations = data.citations || [];
@@ -1097,7 +1103,12 @@
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && input.value.trim()) {
         const q = input.value.trim();
-        navigate(`/ask/${encodeURIComponent(q)}`);
+        const scope = input.getAttribute('data-scope');
+        if (scope) {
+          navigate(`/ask/${encodeURIComponent(q)}?ctx=${encodeURIComponent(scope)}`);
+        } else {
+          navigate(`/ask/${encodeURIComponent(q)}`);
+        }
       }
     });
   }

@@ -67,6 +67,7 @@ class SearchRequest(BaseModel):
 
 class AskRequest(BaseModel):
     question: str
+    article_slug: str | None = None
 
 
 class ResearchRequest(BaseModel):
@@ -265,7 +266,15 @@ async def search(req: SearchRequest) -> dict[str, Any]:
 @app.post("/ask")
 async def ask(req: AskRequest) -> dict[str, Any]:
     """Ask a question and get an answer with citations."""
-    response = await qa.answer_or_research(req.question)
+    question = req.question
+    # If asking from an article page, prepend article content as context
+    if req.article_slug:
+        safe_slug = Path(req.article_slug).name
+        article_path = settings.articles_dir / f"{safe_slug}.md"
+        if article_path.exists():
+            article_text = article_path.read_text()[:4000]  # Cap context size
+            question = f"[Context from article '{safe_slug}':\n{article_text}\n]\n\nQuestion: {req.question}"
+    response = await qa.answer_or_research(question)
     return {
         "answer": response.answer,
         "citations": [
