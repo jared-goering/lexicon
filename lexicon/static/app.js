@@ -175,6 +175,27 @@
     </div>`;
   }
 
+  function skeletonCardHTML(item, index) {
+    const source = item.source || 'Processing…';
+    // Truncate long URLs for display
+    const label = source.length > 40 ? source.slice(0, 37) + '…' : source;
+    return `<div class="topic-card topic-card-skeleton animate-fade-in-up" style="animation-delay:${index * 0.05}s">
+      <div class="skeleton-shimmer"></div>
+      <div class="flex items-center gap-2.5 mb-3">
+        <div class="skeleton-spinner">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+        </div>
+        <span class="topic-card-label" style="color:var(--accent-orange)">PROCESSING</span>
+      </div>
+      <h3 class="topic-card-title skeleton-title">${label}</h3>
+      <div class="topic-card-bar">
+        <div class="skeleton-bar-fill"></div>
+      </div>
+    </div>`;
+  }
+
   function topicCardHTML(article, index) {
     const accent = ACCENTS[index % ACCENTS.length];
     const accentHex = ACCENT_HEX[accent];
@@ -202,11 +223,19 @@
 
   // ─── Home View ───────────────────────────────────────────────────────
   async function renderHome() {
-    await Promise.all([loadStats(), loadTopics()]);
+    let procItems = [];
+    try {
+      const [, , procRes] = await Promise.all([loadStats(), loadTopics(), api('GET', '/api/processing')]);
+      procItems = procRes.items || [];
+    } catch {
+      await Promise.all([loadStats(), loadTopics()]);
+    }
 
-    const cards = state.articles.map((a, i) => topicCardHTML(a, i)).join('');
-    const gridCols = state.articles.length === 0 ? '' : state.articles.length <= 3
-      ? `grid-cols-1 sm:grid-cols-2 lg:grid-cols-${Math.min(3, state.articles.length)}`
+    const skeletons = procItems.map((item, i) => skeletonCardHTML(item, i)).join('');
+    const cards = skeletons + state.articles.map((a, i) => topicCardHTML(a, i + procItems.length)).join('');
+    const totalCount = state.articles.length + procItems.length;
+    const gridCols = totalCount === 0 ? '' : totalCount <= 3
+      ? `grid-cols-1 sm:grid-cols-2 lg:grid-cols-${Math.min(3, totalCount)}`
       : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
 
     app().innerHTML = `
@@ -216,22 +245,7 @@
           <h1 class="uk-hero-title">Lexi<em class="font-display italic" style="font-style:italic">con</em></h1>
           <p class="uk-hero-subtitle">LLM-COMPILED KNOWLEDGE BASE</p>
         </div>
-        <div id="uk-processing-banner" class="uk-processing-banner" style="display:none">
-          <div class="uk-processing-inner">
-            <div class="uk-processing-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" class="uk-processing-rays"/>
-              </svg>
-            </div>
-            <div class="uk-processing-content">
-              <span class="uk-processing-text">Processing</span>
-              <span class="uk-processing-detail">Extracting memories & compiling articles…</span>
-            </div>
-            <div class="uk-processing-bar-track">
-              <div class="uk-processing-bar-fill"></div>
-            </div>
-          </div>
-        </div>
+
         <div class="w-full max-w-4xl flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-fade-in-up" style="animation-delay:0.1s">
           <div class="flex-1">
             ${searchBarHTML('Ask your knowledge base anything\u2026', 'home-search')}
@@ -249,7 +263,7 @@
             <span class="font-mono text-[10px] tracking-[0.24em]">GRAPH</span>
           </button>
         </div>
-        ${state.articles.length > 0 ? `
+        ${totalCount > 0 ? `
           <div class="w-full max-w-4xl mt-16">
             <div class="flex items-center justify-between mb-6 px-1">
               <div class="flex items-center gap-3">
@@ -257,9 +271,9 @@
                 <span class="font-mono text-[9px] text-text-muted tracking-[0.28em]">KNOWLEDGE INDEX</span>
                 <div class="uk-divider" style="width:2rem"></div>
               </div>
-              <span class="font-mono text-[9px] text-text-muted tracking-[0.2em]">${state.articles.length} TOPICS</span>
+              <span class="font-mono text-[9px] text-text-muted tracking-[0.2em]">${state.articles.length} TOPICS${procItems.length > 0 ? ` · ${procItems.length} PROCESSING` : ''}</span>
             </div>
-            <div class="grid ${gridCols} gap-5">
+            <div id="uk-card-grid" class="grid ${gridCols} gap-5">
               ${cards}
             </div>
           </div>
@@ -282,6 +296,7 @@
 
     // Auto-refresh: poll for new compilations and processing status every 3s
     let lastCompiled = 0;
+    let lastProcCount = procItems.length;
     const homeRefreshId = setInterval(async () => {
       // Stop polling if we navigated away from home
       if (getRoute().view !== 'home') { clearInterval(homeRefreshId); return; }
@@ -290,20 +305,27 @@
           api('GET', '/last-compiled'),
           api('GET', '/api/processing'),
         ]);
-        // Show/hide processing indicator
-        const banner = document.getElementById('uk-processing-banner');
-        if (banner) {
-          if (procRes.processing > 0) {
-            banner.style.display = '';
-            const n = procRes.processing;
-            banner.querySelector('.uk-processing-text').textContent =
-              `Processing ${n} clip${n > 1 ? 's' : ''}`;
-            banner.querySelector('.uk-processing-detail').textContent =
-              'Extracting memories & compiling articles…';
-          } else {
-            banner.style.display = 'none';
+        const items = procRes.items || [];
+        // Update skeleton cards in-place
+        const grid = document.getElementById('uk-card-grid');
+        if (grid) {
+          // Remove existing skeletons
+          grid.querySelectorAll('.topic-card-skeleton').forEach(el => el.remove());
+          // Prepend new skeletons
+          if (items.length > 0) {
+            const frag = document.createRange().createContextualFragment(
+              items.map((item, i) => skeletonCardHTML(item, i)).join('')
+            );
+            grid.prepend(frag);
           }
         }
+        // If processing just finished (went from >0 to 0), full re-render to update counts
+        if (lastProcCount > 0 && items.length === 0) {
+          clearInterval(homeRefreshId);
+          navigate('/');
+          return;
+        }
+        lastProcCount = items.length;
         // Refresh home when new compilation lands
         if (lastCompiled > 0 && compRes.last_compiled_at > lastCompiled) {
           clearInterval(homeRefreshId);
@@ -313,18 +335,6 @@
         lastCompiled = compRes.last_compiled_at;
       } catch { /* ignore */ }
     }, 3000);
-
-    // Also check immediately on load
-    try {
-      const procRes = await api('GET', '/api/processing');
-      const banner = document.getElementById('uk-processing-banner');
-      if (banner && procRes.processing > 0) {
-        banner.style.display = '';
-        const n = procRes.processing;
-        banner.querySelector('.uk-processing-text').textContent =
-          `Processing ${n} clip${n > 1 ? 's' : ''}`;
-      }
-    } catch { /* ignore */ }
   }
 
   // ─── Article View ────────────────────────────────────────────────────

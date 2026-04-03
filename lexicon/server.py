@@ -48,6 +48,7 @@ import time
 import threading
 _last_compiled_at: float = 0.0
 _processing_count: int = 0
+_processing_items: list[dict[str, str]] = []  # [{source, title}]
 _processing_lock = threading.Lock()
 
 # --- Request/Response models ---
@@ -176,20 +177,28 @@ async def graph() -> dict[str, Any]:
 @app.get("/api/processing")
 async def processing_status() -> dict[str, Any]:
     """Return the current number of ingest/compile jobs in progress."""
-    return {"processing": _processing_count}
+    with _processing_lock:
+        items = list(_processing_items)
+    return {"processing": _processing_count, "items": items}
 
 
 @app.post("/ingest")
 async def ingest(req: IngestRequest) -> dict[str, Any]:
     """Ingest a URL or raw text into the knowledge base."""
     global _processing_count
+    item = {"source": req.url or "manual", "title": req.title or req.url or "Untitled"}
     with _processing_lock:
         _processing_count += 1
+        _processing_items.append(item)
     try:
         return await _do_ingest(req)
     finally:
         with _processing_lock:
             _processing_count = max(0, _processing_count - 1)
+            try:
+                _processing_items.remove(item)
+            except ValueError:
+                pass
 
 
 async def _do_ingest(req: IngestRequest) -> dict[str, Any]:
