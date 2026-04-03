@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -181,6 +181,11 @@ async def ask(req: AskRequest) -> dict[str, Any]:
 @app.post("/research")
 async def research(req: ResearchRequest) -> dict[str, Any]:
     """Research a topic via Exa web search and ingest results into Ultramemory."""
+    if not settings.exa_api_key:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "EXA_API_KEY not configured. Set it in your environment or ~/.openclaw/.env"},
+        )
     result = await research_agent.research(
         req.query,
         num_results=req.num_results,
