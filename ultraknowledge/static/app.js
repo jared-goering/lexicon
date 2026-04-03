@@ -653,8 +653,8 @@
           <div id="graph-tooltip" class="graph-tooltip hidden"></div>
           <div class="graph-controls">
             <div>
-              <label for="graph-charge" class="graph-control-label">DENSITY / CHARGE</label>
-              <input id="graph-charge" class="graph-slider" type="range" min="20" max="300" value="120">
+              <label for="graph-charge" class="graph-control-label">DENSITY</label>
+              <input id="graph-charge" class="graph-slider" type="range" min="0" max="100" value="50">
             </div>
             <div>
               <label for="graph-link-distance" class="graph-control-label">LINK DISTANCE</label>
@@ -768,10 +768,14 @@
         });
 
       const applyDensity = (val) => {
-        // val: 20 (sparse) → 300 (dense)
-        // charge: -280 (strong repulsion) → -20 (weak repulsion)
-        const charge = -(320 - val);
+        // val: 0 (very sparse) → 100 (very dense)
+        // charge: -300 (strong repulsion) → -10 (minimal repulsion)
+        const charge = -300 + val * 2.9;
+        // link distance: scaled inversely — dense = shorter links
+        const baseLinkDist = Number(linkDistanceInput.value);
+        const linkScale = 1.5 - val / 100;  // 1.5x at 0, 0.5x at 100
         fg.d3Force('charge').strength(charge);
+        fg.d3Force('link').distance(baseLinkDist * linkScale);
       };
       applyDensity(Number(chargeInput.value));
       fg.d3Force('link').distance(Number(linkDistanceInput.value));
