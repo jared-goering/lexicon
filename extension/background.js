@@ -1,4 +1,4 @@
-// UltraKnowledge Web Clipper — Background Service Worker
+// Lexicon Web Clipper — Background Service Worker
 
 const API_BASE = 'http://localhost:8899';
 const MAX_RECENT_CLIPS = 20;
@@ -7,12 +7,12 @@ const MAX_RECENT_CLIPS = 20;
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: 'clip-page',
-    title: 'Clip Page to UltraKnowledge',
+    title: 'Clip Page to Lexicon',
     contexts: ['page'],
   });
   chrome.contextMenus.create({
     id: 'clip-selection',
-    title: 'Clip Selection to UltraKnowledge',
+    title: 'Clip Selection to Lexicon',
     contexts: ['selection'],
   });
 });

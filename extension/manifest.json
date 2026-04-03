@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "UltraKnowledge Web Clipper",
-  "description": "Clip web pages and text selections to your UltraKnowledge knowledge base",
+  "name": "Lexicon Web Clipper",
+  "description": "Clip web pages and text selections to your Lexicon knowledge base",
   "version": "1.0.0",
   "permissions": ["activeTab", "contextMenus", "storage"],
   "host_permissions": ["http://localhost:8899/*"],

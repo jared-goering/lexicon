@@ -1,4 +1,4 @@
-# DESIGN.md — ultraknowledge UI Specification
+# DESIGN.md — lexicon UI Specification
 
 > Reference mockup: [Variant.ai design](https://variant.com/shared/fbc458cf-b880-4e3a-8c6f-4b0aa2cf0424?t=1775168661200)
 
@@ -34,7 +34,7 @@
 
 ## Typography
 
-- **Brand name:** All caps, ultra-wide letter-spacing (`ULTRAKNOWLEDGE`), monospace
+- **Brand name:** All caps, ultra-wide letter-spacing (`LEXICON`), monospace
 - **Labels/metadata:** Uppercase monospace, small (`TOPIC // #1`, `COMPILED INDEX: 14,204 ARTICLES`)
 - **Body text:** Clean sans-serif, 16-18px, 1.6 line-height
 - **Headings in articles:** Sans-serif, semibold, no uppercase
@@ -46,7 +46,7 @@
 The home screen has exactly three elements:
 
 ### 1. Brand + Search Bar (center)
-- `ULTRAKNOWLEDGE` in spaced uppercase monospace, centered
+- `LEXICON` in spaced uppercase monospace, centered
 - Below it: a large search/ask input bar
   - Placeholder: `Ask your knowledge...`
   - Right-aligned submit label: `ENTER TO ASK` (monospace, muted)

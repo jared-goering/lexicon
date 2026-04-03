@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ultraknowledge.config import Settings, get_settings
-from ultraknowledge.ultramemory_client import UltramemoryClient
+from lexicon.config import Settings, get_settings
+from lexicon.ultramemory_client import UltramemoryClient
 
 # File types we can ingest directly as text
 TEXT_EXTENSIONS = {

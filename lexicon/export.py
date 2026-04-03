@@ -10,7 +10,7 @@ import re
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from ultraknowledge.config import Settings, get_settings
+from lexicon.config import Settings, get_settings
 
 try:
     import yaml
@@ -403,7 +403,7 @@ class Exporter:
 
         empty_state = '<p class="meta">No articles compiled yet.</p>' if not articles else ""
         document = self._build_document(
-            title="UltraKnowledge Full Export",
+            title="Lexicon Full Export",
             subtitle="Entire knowledge base snapshot",
             meta=f"{len(articles)} articles",
             content_html=(
@@ -415,7 +415,7 @@ class Exporter:
             ),
         )
 
-        output = (output_dir or self._exports_dir()) / "ultraknowledge-full-export.html"
+        output = (output_dir or self._exports_dir()) / "lexicon-full-export.html"
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(document, encoding="utf-8")
         return ExportResult(
@@ -513,7 +513,7 @@ class Exporter:
             '<span style="background:var(--accent-2)"></span>'
             '<span style="background:var(--accent-3)"></span>'
             '<span style="background:var(--accent-4)"></span>'
-            "</span> ULTRAKNOWLEDGE</div>"
+            "</span> LEXICON</div>"
             f"<h1>{escape(title)}</h1>"
             f'<div class="meta">{escape(subtitle)} · {escape(meta)}</div>'
             "</header>"

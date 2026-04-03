@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ultraknowledge.config import Settings
-from ultraknowledge.linter import KBLinter, LintReport
-from ultraknowledge.research import ResearchAgent, ResearchRun
-from ultraknowledge.watch import WatchAgent
+from lexicon.config import Settings
+from lexicon.linter import KBLinter, LintReport
+from lexicon.research import ResearchAgent, ResearchRun
+from lexicon.watch import WatchAgent
 
 
 @pytest.fixture
@@ -86,7 +86,7 @@ def test_watch_loop_runs_until_watch_is_removed(tmp_settings: Settings, tmp_path
 
     sleep_mock = AsyncMock(return_value=None)
     monkeypatch.setattr(agent, "run_watch_cycle", fake_run_watch_cycle)
-    monkeypatch.setattr("ultraknowledge.watch.asyncio.sleep", sleep_mock)
+    monkeypatch.setattr("lexicon.watch.asyncio.sleep", sleep_mock)
 
     asyncio.run(agent.watch("llm", interval_minutes=1))
 

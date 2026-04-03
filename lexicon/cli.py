@@ -8,7 +8,7 @@ from pathlib import Path
 
 import click
 
-from ultraknowledge.config import get_settings
+from lexicon.config import get_settings
 
 
 def run_async(coro):
@@ -17,9 +17,9 @@ def run_async(coro):
 
 
 @click.group()
-@click.version_option(package_name="ultraknowledge")
+@click.version_option(package_name="lexicon")
 def cli():
-    """ultraknowledge — LLM-compiled personal knowledge base.
+    """lexicon — LLM-compiled personal knowledge base.
 
     Ingest information from URLs, files, and web searches. An LLM compiles
     everything into a browseable wiki of interconnected markdown articles.
@@ -56,12 +56,12 @@ def ingest(source: str, title: str | None, source_type: str | None):
         else:
             source_type = "text"
 
-    from ultraknowledge.ultramemory_client import UltramemoryClient
+    from lexicon.ultramemory_client import UltramemoryClient
 
     client = UltramemoryClient(settings)
 
     if source_type == "url":
-        from ultraknowledge.connectors.url import URLConnector
+        from lexicon.connectors.url import URLConnector
 
         connector = URLConnector(settings, client=client)
         chunk = run_async(connector.fetch_and_ingest(source))
@@ -73,7 +73,7 @@ def ingest(source: str, title: str | None, source_type: str | None):
             click.echo(f"  Memories created: {um.get('memories_created', 0)}")
 
     elif source_type == "file":
-        from ultraknowledge.connectors.files import FileConnector
+        from lexicon.connectors.files import FileConnector
 
         connector = FileConnector(settings, client=client)
         chunk = run_async(connector.ingest_file_to_ultramemory(source))
@@ -85,7 +85,7 @@ def ingest(source: str, title: str | None, source_type: str | None):
             click.echo(f"  Memories created: {um.get('memories_created', 0)}")
 
     elif source_type == "folder":
-        from ultraknowledge.connectors.files import FileConnector
+        from lexicon.connectors.files import FileConnector
 
         connector = FileConnector(settings, client=client)
         chunks = run_async(connector.ingest_folder_to_ultramemory(source))
@@ -120,7 +120,7 @@ def search(query: str, num: int):
 
         uk search "transformer architecture"
     """
-    from ultraknowledge.ultramemory_client import UltramemoryClient
+    from lexicon.ultramemory_client import UltramemoryClient
 
     settings = get_settings()
     client = UltramemoryClient(settings)
@@ -154,7 +154,7 @@ def research(query: str, num_results: int, compile_results: bool):
 
         uk research "transformer architecture advances 2025"
     """
-    from ultraknowledge.research import ResearchAgent
+    from lexicon.research import ResearchAgent
 
     settings = get_settings()
     agent = ResearchAgent(settings)
@@ -190,7 +190,7 @@ def ask(question: str):
 
         uk ask "What are the key differences between GPT-4 and Claude?"
     """
-    from ultraknowledge.qa import QAAgent
+    from lexicon.qa import QAAgent
 
     settings = get_settings()
     agent = QAAgent(settings)
@@ -226,8 +226,8 @@ def compile_kb(topic: str | None):
 
         uk compile --topic "machine learning"
     """
-    from ultraknowledge.compiler import WikiCompiler
-    from ultraknowledge.linker import AutoLinker
+    from lexicon.compiler import WikiCompiler
+    from lexicon.linker import AutoLinker
 
     settings = get_settings()
     compiler = WikiCompiler(settings)
@@ -264,7 +264,7 @@ def lint(stale_days: int):
 
         uk lint --stale-days 7
     """
-    from ultraknowledge.linter import KBLinter
+    from lexicon.linter import KBLinter
 
     settings = get_settings()
     kb_linter = KBLinter(settings)
@@ -297,7 +297,7 @@ def export_article(topic: str, fmt: str, output: str | None):
 
         uk export "transformer architecture" --format briefing -o ./output
     """
-    from ultraknowledge.export import Exporter
+    from lexicon.export import Exporter
 
     settings = get_settings()
     exp = Exporter(settings)
@@ -318,7 +318,7 @@ def export_article(topic: str, fmt: str, output: str | None):
 @click.option("--host", default=None, help="Host to bind to")
 @click.option("--port", "-p", default=None, type=int, help="Port to listen on")
 def serve(host: str | None, port: int | None):
-    """Start the ultraknowledge web UI and API server.
+    """Start the lexicon web UI and API server.
 
     Example:
 
@@ -330,7 +330,7 @@ def serve(host: str | None, port: int | None):
 
     settings = get_settings()
     uvicorn.run(
-        "ultraknowledge.server:app",
+        "lexicon.server:app",
         host=host or settings.host,
         port=port or settings.port,
         reload=False,
@@ -344,7 +344,7 @@ def serve(host: str | None, port: int | None):
 @click.option("--stop", "stop_topic", help="Stop watching a topic")
 def watch(topic: str | None, interval: int, list_watches: bool, stop_topic: str | None):
     """Watch a topic by rerunning research, compile, and lint on a schedule."""
-    from ultraknowledge.watch import WatchAgent
+    from lexicon.watch import WatchAgent
 
     agent = WatchAgent(get_settings())
 

@@ -7,19 +7,19 @@ __all__ = ["ExaConnector", "FileConnector", "RSSConnector", "URLConnector"]
 
 def __getattr__(name: str):
     if name == "FileConnector":
-        from ultraknowledge.connectors.files import FileConnector
+        from lexicon.connectors.files import FileConnector
 
         return FileConnector
     if name == "RSSConnector":
-        from ultraknowledge.connectors.rss import RSSConnector
+        from lexicon.connectors.rss import RSSConnector
 
         return RSSConnector
     if name == "URLConnector":
-        from ultraknowledge.connectors.url import URLConnector
+        from lexicon.connectors.url import URLConnector
 
         return URLConnector
     if name == "ExaConnector":
-        from ultraknowledge.connectors.web_search import ExaConnector
+        from lexicon.connectors.web_search import ExaConnector
 
         return ExaConnector
     raise AttributeError(name)

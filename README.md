@@ -1,4 +1,4 @@
-# ultraknowledge
+# lexicon
 
 **An LLM-compiled personal knowledge base engine.**
 
@@ -8,7 +8,7 @@ Inspired by [Andrej Karpathy's vision of LLM Knowledge Bases](https://x.com/karp
 
 ## The Key Idea
 
-Most knowledge tools make _you_ do the organizing. You tag, you file, you link. ultraknowledge flips this: you throw information at it (URLs, PDFs, search results, notes), and an LLM compiles everything into a browseable wiki of interconnected markdown articles — with backlinks, an index, citations, and source tracking.
+Most knowledge tools make _you_ do the organizing. You tag, you file, you link. lexicon flips this: you throw information at it (URLs, PDFs, search results, notes), and an LLM compiles everything into a browseable wiki of interconnected markdown articles — with backlinks, an index, citations, and source tracking.
 
 The wiki is the output, not the input.
 
@@ -45,7 +45,7 @@ The wiki is the output, not the input.
 ### Phase 2
 
 - **Research Mode** — `uk research "topic"` searches Exa, ingests results into Ultramemory, compiles findings into wiki articles, and rebuilds links
-- **Watch Mode** — `uk watch "topic" --interval 60` runs recurring research, compilation, and linting with watch state stored in `~/.ultraknowledge/watches.json`
+- **Watch Mode** — `uk watch "topic" --interval 60` runs recurring research, compilation, and linting with watch state stored in `~/.lexicon/watches.json`
 - **Q&A fallback research** — `uk ask "question"` automatically triggers web research when the KB has no relevant matches, then retries with formatted citations
 - **Real lint checks** — `uk lint` reports staleness, contradiction risks, and entity coverage gaps with `info`, `warn`, and `error` severities
 
@@ -64,7 +64,7 @@ The wiki is the output, not the input.
 ### Install
 
 ```bash
-pip install ultraknowledge
+pip install lexicon
 ```
 
 ### Set up
@@ -146,7 +146,7 @@ All configuration is via environment variables:
 | `UK_LLM_MODEL` | `gemini/gemini-2.0-flash` | LiteLLM model string |
 | `UK_LLM_TEMPERATURE` | `0.3` | LLM temperature for article generation |
 | `UK_ULTRAMEMORY_URL` | empty | Optional Ultramemory server URL; leave unset to use the embedded engine |
-| `UK_ULTRAMEMORY_DB_PATH` | `~/.ultraknowledge/memory.db` | Embedded Ultramemory database path |
+| `UK_ULTRAMEMORY_DB_PATH` | `~/.lexicon/memory.db` | Embedded Ultramemory database path |
 | `UK_KB_DIR` | `./kb` | Output directory for the wiki |
 | `UK_COMPILE_FREQUENCY` | `60` | Auto-compile interval in minutes |
 | `EXA_API_KEY` | — | Exa API key for web research |
@@ -183,10 +183,10 @@ uk watch <topic>        Run recurring research, compile, and lint cycles
 
 ## Using with Local Models
 
-ultraknowledge works great with local models via Ollama:
+lexicon works great with local models via Ollama:
 
 ```bash
-pip install ultraknowledge[local]
+pip install lexicon[local]
 export UK_LLM_MODEL="ollama/llama3"
 uk serve
 ```
@@ -210,8 +210,8 @@ This section is preserved across recompilations.
 ## Development
 
 ```bash
-git clone https://github.com/ultraknowledge/ultraknowledge
-cd ultraknowledge
+git clone https://github.com/jared-goering/lexicon
+cd lexicon
 pip install -e ".[dev]"
 pytest
 ```

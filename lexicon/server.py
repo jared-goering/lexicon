@@ -13,18 +13,18 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from ultraknowledge.compiler import WikiCompiler
-from ultraknowledge.config import get_settings
-from ultraknowledge.connectors.url import URLConnector
-from ultraknowledge.export import Exporter
-from ultraknowledge.linker import AutoLinker
-from ultraknowledge.linter import KBLinter
-from ultraknowledge.qa import QAAgent
-from ultraknowledge.research import ResearchAgent
-from ultraknowledge.ultramemory_client import UltramemoryClient
+from lexicon.compiler import WikiCompiler
+from lexicon.config import get_settings
+from lexicon.connectors.url import URLConnector
+from lexicon.export import Exporter
+from lexicon.linker import AutoLinker
+from lexicon.linter import KBLinter
+from lexicon.qa import QAAgent
+from lexicon.research import ResearchAgent
+from lexicon.ultramemory_client import UltramemoryClient
 
 app = FastAPI(
-    title="ultraknowledge",
+    title="lexicon",
     description="LLM-compiled personal knowledge base",
     version="0.1.0",
 )

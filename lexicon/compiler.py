@@ -10,8 +10,8 @@ from typing import Any
 
 import litellm
 
-from ultraknowledge.config import Settings, get_settings
-from ultraknowledge.ultramemory_client import UltramemoryClient
+from lexicon.config import Settings, get_settings
+from lexicon.ultramemory_client import UltramemoryClient
 
 MANUAL_MARKER = "<!-- manual -->"
 

@@ -8,9 +8,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ultraknowledge.config import Settings
-from ultraknowledge.qa import Citation, QAAgent, QAResponse
-from ultraknowledge.ultramemory_client import UltramemoryClient
+from lexicon.config import Settings
+from lexicon.qa import Citation, QAAgent, QAResponse
+from lexicon.ultramemory_client import UltramemoryClient
 
 
 @pytest.fixture

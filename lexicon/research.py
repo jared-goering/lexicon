@@ -6,11 +6,11 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ultraknowledge.compiler import WikiCompiler
-from ultraknowledge.config import Settings, get_settings
-from ultraknowledge.connectors.web_search import ExaConnector, SearchResult
-from ultraknowledge.linker import AutoLinker
-from ultraknowledge.ultramemory_client import UltramemoryClient
+from lexicon.compiler import WikiCompiler
+from lexicon.config import Settings, get_settings
+from lexicon.connectors.web_search import ExaConnector, SearchResult
+from lexicon.linker import AutoLinker
+from lexicon.ultramemory_client import UltramemoryClient
 
 
 RESEARCH_TITLE_RE = re.compile(r"^Source Title:\s*(.+)$", re.MULTILINE)

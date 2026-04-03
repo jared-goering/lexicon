@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from ultraknowledge.config import Settings
-from ultraknowledge.linker import AutoLinker
+from lexicon.config import Settings
+from lexicon.linker import AutoLinker
 
 
 @pytest.fixture

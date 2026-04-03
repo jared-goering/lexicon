@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, patch
 import httpx
 import pytest
 
-from ultraknowledge.config import Settings
-from ultraknowledge.ultramemory_client import UltramemoryClient
+from lexicon.config import Settings
+from lexicon.ultramemory_client import UltramemoryClient
 
 
 @pytest.fixture
@@ -111,7 +111,7 @@ class TestSearch:
         client = UltramemoryClient(settings)
 
         with patch.object(client, "_get_engine") as mock_get_engine, patch(
-            "ultraknowledge.ultramemory_client.asyncio.to_thread",
+            "lexicon.ultramemory_client.asyncio.to_thread",
             new_callable=AsyncMock,
             return_value=[{"content": "result"}],
         ) as mock_to_thread:
@@ -144,7 +144,7 @@ class TestStats:
         client = UltramemoryClient(settings)
 
         with patch.object(client, "_get_engine") as mock_get_engine, patch(
-            "ultraknowledge.ultramemory_client.asyncio.to_thread",
+            "lexicon.ultramemory_client.asyncio.to_thread",
             new_callable=AsyncMock,
             return_value={"total_memories": 42},
         ) as mock_to_thread:
@@ -188,7 +188,7 @@ class TestEntities:
         client = UltramemoryClient(settings)
 
         with patch.object(client, "_get_engine") as mock_get_engine, patch(
-            "ultraknowledge.ultramemory_client.asyncio.to_thread",
+            "lexicon.ultramemory_client.asyncio.to_thread",
             new_callable=AsyncMock,
             return_value=[{"entity_name": "Python"}],
         ) as mock_to_thread:

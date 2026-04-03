@@ -7,12 +7,12 @@ import os
 import time
 from typing import Any
 
-from ultraknowledge.config import Settings, get_settings
+from lexicon.config import Settings, get_settings
 
 
 class UltramemoryClient:
     """Wraps Ultramemory.  Embedded mode (default) uses MemoryEngine directly
-    with ultraknowledge's own database.  Remote mode talks to an HTTP server.
+    with lexicon's own database.  Remote mode talks to an HTTP server.
 
     Embedded is preferred — no separate server needed, fully isolated DB.
     """
@@ -27,7 +27,7 @@ class UltramemoryClient:
         return bool(self._remote_url)
 
     def _get_engine(self):
-        """Lazy-init the embedded MemoryEngine with ultraknowledge's own DB."""
+        """Lazy-init the embedded MemoryEngine with lexicon's own DB."""
         if self._engine is None:
             from ultramemory.engine import MemoryEngine
 
@@ -61,7 +61,7 @@ class UltramemoryClient:
         self,
         text: str,
         session_key: str | None = None,
-        agent_id: str = "ultraknowledge",
+        agent_id: str = "lexicon",
         document_date: str | None = None,
     ) -> dict[str, Any]:
         """Ingest text — extract memories via LLM, embed, store."""
@@ -92,7 +92,7 @@ class UltramemoryClient:
         self,
         text: str,
         session_key: str | None = None,
-        agent_id: str = "ultraknowledge",
+        agent_id: str = "lexicon",
         document_date: str | None = None,
         chunk_size: int = 512,
     ) -> dict[str, Any]:

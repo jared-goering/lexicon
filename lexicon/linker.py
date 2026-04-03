@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ultraknowledge.config import Settings, get_settings
+from lexicon.config import Settings, get_settings
 
 
 @dataclass

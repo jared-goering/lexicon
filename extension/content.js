@@ -1,4 +1,4 @@
-// UltraKnowledge Web Clipper — Content Script
+// Lexicon Web Clipper — Content Script
 // Returns selected text when asked by the popup
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

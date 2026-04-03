@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ultraknowledge.config import Settings
-from ultraknowledge.connectors.web_search import SearchResult
-from ultraknowledge.research import ResearchAgent, build_research_document, extract_research_metadata
-from ultraknowledge.ultramemory_client import UltramemoryClient
+from lexicon.config import Settings
+from lexicon.connectors.web_search import SearchResult
+from lexicon.research import ResearchAgent, build_research_document, extract_research_metadata
+from lexicon.ultramemory_client import UltramemoryClient
 
 
 @pytest.fixture

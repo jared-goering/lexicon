@@ -8,9 +8,9 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from ultraknowledge.config import Settings, get_settings
-from ultraknowledge.linter import KBLinter, LintReport
-from ultraknowledge.research import ResearchAgent, ResearchRun
+from lexicon.config import Settings, get_settings
+from lexicon.linter import KBLinter, LintReport
+from lexicon.research import ResearchAgent, ResearchRun
 
 
 @dataclass
@@ -36,7 +36,7 @@ class WatchAgent:
         self.settings = settings or get_settings()
         self.research_agent = research_agent or ResearchAgent(self.settings)
         self.linter = linter or KBLinter(self.settings)
-        self.watches_path = watches_path or (Path.home() / ".ultraknowledge" / "watches.json")
+        self.watches_path = watches_path or (Path.home() / ".lexicon" / "watches.json")
 
     def list_watches(self) -> list[WatchEntry]:
         data = self._read_watches()

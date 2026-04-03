@@ -9,7 +9,7 @@ from pathlib import Path
 
 @dataclass
 class Settings:
-    """All configuration for ultraknowledge, read from environment variables."""
+    """All configuration for lexicon, read from environment variables."""
 
     # LLM
     llm_model: str = field(
@@ -19,7 +19,7 @@ class Settings:
         default_factory=lambda: float(os.getenv("UK_LLM_TEMPERATURE", "0.3"))
     )
 
-    # Ultramemory — ultraknowledge uses its OWN database, separate from OpenClaw's.
+    # Ultramemory — lexicon uses its OWN database, separate from OpenClaw's.
     # Set UK_ULTRAMEMORY_URL to point at an external server, or leave blank to use
     # the embedded engine with a dedicated DB at UK_ULTRAMEMORY_DB_PATH.
     ultramemory_url: str = field(
@@ -27,11 +27,11 @@ class Settings:
     )
     ultramemory_db_path: Path = field(
         default_factory=lambda: Path(
-            os.getenv("UK_ULTRAMEMORY_DB_PATH", os.path.join(str(Path.home()), ".ultraknowledge", "memory.db"))
+            os.getenv("UK_ULTRAMEMORY_DB_PATH", os.path.join(str(Path.home()), ".lexicon", "memory.db"))
         )
     )
     ultramemory_collection: str = field(
-        default_factory=lambda: os.getenv("UK_ULTRAMEMORY_COLLECTION", "ultraknowledge")
+        default_factory=lambda: os.getenv("UK_ULTRAMEMORY_COLLECTION", "lexicon")
     )
 
     # Knowledge base output

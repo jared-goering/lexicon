@@ -1,4 +1,4 @@
-// UltraKnowledge Web Clipper — Popup Script
+// Lexicon Web Clipper — Popup Script
 
 const API_BASE = 'http://localhost:8899';
 

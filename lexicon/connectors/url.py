@@ -7,8 +7,8 @@ from urllib.parse import urlparse
 
 import httpx
 
-from ultraknowledge.config import Settings, get_settings
-from ultraknowledge.ultramemory_client import UltramemoryClient
+from lexicon.config import Settings, get_settings
+from lexicon.ultramemory_client import UltramemoryClient
 
 
 def _extract_with_trafilatura(html: str, url: str) -> str | None:

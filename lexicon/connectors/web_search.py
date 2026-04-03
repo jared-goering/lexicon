@@ -6,7 +6,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from ultraknowledge.config import Settings, get_settings
+from lexicon.config import Settings, get_settings
 
 
 @dataclass

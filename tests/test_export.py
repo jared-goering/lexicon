@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from ultraknowledge.config import Settings
-from ultraknowledge.export import Exporter
+from lexicon.config import Settings
+from lexicon.export import Exporter
 
 
 @pytest.fixture
@@ -112,7 +112,7 @@ Connects to [[Vector Databases]].
     snapshot_html = snapshot.output_path.read_text(encoding="utf-8")
     full_export_html = full_export.output_path.read_text(encoding="utf-8")
 
-    assert "ULTRAKNOWLEDGE" in snapshot_html
+    assert "LEXICON" in snapshot_html
     assert "Static article snapshot" in snapshot_html
     assert "Table of Contents" in full_export_html
     assert "Retrieval-Augmented Generation" in full_export_html
@@ -121,7 +121,7 @@ Connects to [[Vector Databases]].
 def test_export_routes_serve_generated_files(tmp_settings: Settings, monkeypatch: pytest.MonkeyPatch):
     fastapi = pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
-    from ultraknowledge import server
+    from lexicon import server
 
     _write_article(
         tmp_settings,
@@ -154,7 +154,7 @@ See [[Self Attention]].
 
     snapshot_response = client.get("/api/snapshot/transformers")
     assert snapshot_response.status_code == 200
-    assert "ULTRAKNOWLEDGE" in snapshot_response.text
+    assert "LEXICON" in snapshot_response.text
 
     export_all_response = client.post("/api/export-all")
     assert export_all_response.status_code == 200

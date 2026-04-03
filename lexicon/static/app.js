@@ -1,4 +1,4 @@
-/* ultraknowledge — single-page app */
+/* lexicon — single-page app */
 
 (function () {
   'use strict';
@@ -204,7 +204,7 @@
       ${headerHTML(false, true)}
       <main class="min-h-screen flex flex-col items-center justify-center px-6 pb-20 pt-20">
         <div class="uk-hero text-center mb-12 animate-fade-in-up">
-          <h1 class="uk-hero-title">Ultra<em class="font-display italic" style="font-style:italic">Knowledge</em></h1>
+          <h1 class="uk-hero-title">Lexi<em class="font-display italic" style="font-style:italic">con</em></h1>
           <p class="uk-hero-subtitle">LLM-COMPILED KNOWLEDGE BASE</p>
         </div>
         <div class="w-full max-w-4xl flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-fade-in-up" style="animation-delay:0.1s">

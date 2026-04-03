@@ -9,9 +9,9 @@ from typing import Any
 
 import litellm
 
-from ultraknowledge.config import Settings, get_settings
-from ultraknowledge.research import extract_research_metadata
-from ultraknowledge.ultramemory_client import UltramemoryClient
+from lexicon.config import Settings, get_settings
+from lexicon.research import extract_research_metadata
+from lexicon.ultramemory_client import UltramemoryClient
 
 CONTRADICTION_PROMPT = """\
 Compare these two excerpts from the knowledge base and determine if they contain

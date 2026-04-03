@@ -10,7 +10,7 @@ from typing import Any
 
 import feedparser
 
-from ultraknowledge.config import Settings, get_settings
+from lexicon.config import Settings, get_settings
 
 
 @dataclass
