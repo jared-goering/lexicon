@@ -217,8 +217,20 @@
           <p class="uk-hero-subtitle">LLM-COMPILED KNOWLEDGE BASE</p>
         </div>
         <div id="uk-processing-banner" class="uk-processing-banner" style="display:none">
-          <div class="uk-processing-spinner"></div>
-          <span class="uk-processing-text font-mono text-[11px] tracking-[0.12em]">Processing\u2026</span>
+          <div class="uk-processing-inner">
+            <div class="uk-processing-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" class="uk-processing-rays"/>
+              </svg>
+            </div>
+            <div class="uk-processing-content">
+              <span class="uk-processing-text">Processing</span>
+              <span class="uk-processing-detail">Extracting memories & compiling articles…</span>
+            </div>
+            <div class="uk-processing-bar-track">
+              <div class="uk-processing-bar-fill"></div>
+            </div>
+          </div>
         </div>
         <div class="w-full max-w-4xl flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-fade-in-up" style="animation-delay:0.1s">
           <div class="flex-1">
@@ -282,9 +294,12 @@
         const banner = document.getElementById('uk-processing-banner');
         if (banner) {
           if (procRes.processing > 0) {
-            banner.style.display = 'flex';
+            banner.style.display = '';
+            const n = procRes.processing;
             banner.querySelector('.uk-processing-text').textContent =
-              `Processing ${procRes.processing} clip${procRes.processing > 1 ? 's' : ''}\u2026`;
+              `Processing ${n} clip${n > 1 ? 's' : ''}`;
+            banner.querySelector('.uk-processing-detail').textContent =
+              'Extracting memories & compiling articles…';
           } else {
             banner.style.display = 'none';
           }
@@ -304,9 +319,10 @@
       const procRes = await api('GET', '/api/processing');
       const banner = document.getElementById('uk-processing-banner');
       if (banner && procRes.processing > 0) {
-        banner.style.display = 'flex';
+        banner.style.display = '';
+        const n = procRes.processing;
         banner.querySelector('.uk-processing-text').textContent =
-          `Processing ${procRes.processing} clip${procRes.processing > 1 ? 's' : ''}\u2026`;
+          `Processing ${n} clip${n > 1 ? 's' : ''}`;
       }
     } catch { /* ignore */ }
   }
