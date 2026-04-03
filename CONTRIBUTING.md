@@ -5,7 +5,7 @@ Thanks for your interest in contributing! This guide will get you up and running
 ## Development Setup
 
 ```bash
-git clone https://github.com/jared-goering/lexiconai
+git clone https://github.com/jared-goering/lexicon
 cd lexiconai
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate

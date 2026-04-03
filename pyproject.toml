@@ -47,9 +47,9 @@ dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4", "pytest-httpx>=0.30"]
 uk = "lexicon.cli:cli"
 
 [project.urls]
-Homepage = "https://github.com/jared-goering/lexiconai"
-Repository = "https://github.com/jared-goering/lexiconai"
-Issues = "https://github.com/jared-goering/lexiconai/issues"
+Homepage = "https://github.com/jared-goering/lexicon"
+Repository = "https://github.com/jared-goering/lexicon"
+Issues = "https://github.com/jared-goering/lexicon/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["lexicon"]

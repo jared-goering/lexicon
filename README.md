@@ -245,7 +245,7 @@ This section is preserved across recompilations.
 ## Development
 
 ```bash
-git clone https://github.com/jared-goering/lexiconai
+git clone https://github.com/jared-goering/lexicon
 cd lexiconai
 pip install -e ".[dev]"
 pytest
