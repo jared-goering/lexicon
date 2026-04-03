@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections import Counter
+from contextlib import asynccontextmanager
+import glob as globmod
+import logging
 import mimetypes
 from pathlib import Path
 import secrets
+import tempfile
 from typing import Any
 import unicodedata
 
@@ -27,10 +32,59 @@ from lexicon.research import ResearchAgent
 from lexicon.ultramemory_client import UltramemoryClient
 from lexicon.utils import safe_slug
 
+logger = logging.getLogger("lexicon.server")
+
+_SHUTDOWN_TIMEOUT = 30  # seconds
+
+
+def _cleanup_temp_files() -> int:
+    """Remove temp files created by Lexicon media ingest."""
+    count = 0
+    tmp_dir = tempfile.gettempdir()
+    for ext in (".png", ".jpg", ".jpeg", ".mp3", ".wav", ".mp4", ".mov"):
+        for path in globmod.glob(f"{tmp_dir}/tmp*{ext}"):
+            try:
+                Path(path).unlink()
+                count += 1
+            except OSError:
+                pass
+    return count
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup — nothing extra needed
+    yield
+    # Shutdown
+    with _processing_lock:
+        count = _processing_count
+    if count > 0:
+        logger.info("Lexicon shutting down, waiting for %d tasks...", count)
+        deadline = asyncio.get_event_loop().time() + _SHUTDOWN_TIMEOUT
+        while True:
+            with _processing_lock:
+                count = _processing_count
+            if count == 0:
+                break
+            remaining = deadline - asyncio.get_event_loop().time()
+            if remaining <= 0:
+                logger.warning(
+                    "Shutdown timeout reached with %d tasks still running, forcing exit",
+                    count,
+                )
+                break
+            await asyncio.sleep(min(0.5, remaining))
+    cleaned = _cleanup_temp_files()
+    if cleaned:
+        logger.info("Cleaned up %d temp files", cleaned)
+    logger.info("Lexicon shutdown complete")
+
+
 app = FastAPI(
     title="lexicon",
     description="LLM-compiled personal knowledge base",
     version=__version__,
+    lifespan=lifespan,
 )
 
 settings = get_settings()
