@@ -254,6 +254,22 @@
     `;
 
     bindSearchInput('home-search');
+
+    // Auto-refresh: poll for new compilations every 5s
+    let lastCompiled = 0;
+    const homeRefreshId = setInterval(async () => {
+      // Stop polling if we navigated away from home
+      if (getRoute().view !== 'home') { clearInterval(homeRefreshId); return; }
+      try {
+        const res = await api('GET', '/last-compiled');
+        if (lastCompiled > 0 && res.last_compiled_at > lastCompiled) {
+          clearInterval(homeRefreshId);
+          navigate('/');  // re-render home with new articles
+          return;
+        }
+        lastCompiled = res.last_compiled_at;
+      } catch { /* ignore */ }
+    }, 5000);
   }
 
   // ─── Article View ────────────────────────────────────────────────────

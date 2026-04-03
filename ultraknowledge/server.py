@@ -43,6 +43,9 @@ url_connector = URLConnector(settings, client=um_client)
 _static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
+# Track last compilation timestamp for auto-refresh
+import time
+_last_compiled_at: float = 0.0
 
 # --- Request/Response models ---
 
@@ -51,6 +54,7 @@ class IngestRequest(BaseModel):
     url: str | None = None
     text: str | None = None
     title: str | None = None
+    compile: bool = True
 
 
 class SearchRequest(BaseModel):
@@ -168,28 +172,54 @@ async def graph() -> dict[str, Any]:
 @app.post("/ingest")
 async def ingest(req: IngestRequest) -> dict[str, Any]:
     """Ingest a URL or raw text into the knowledge base."""
+    source = "manual"
+    title = req.title or "Untitled"
+    memories_created = 0
+
     if req.url:
         chunk = await url_connector.fetch_and_ingest(req.url)
-        return {
-            "status": "ingested",
-            "source": req.url,
-            "title": chunk["title"],
-            "memories_created": chunk.get("ultramemory", {}).get("memories_created", 0),
-        }
+        source = req.url
+        title = chunk.get("title", "Untitled")
+        memories_created = chunk.get("ultramemory", {}).get("memories_created", 0)
     elif req.text:
         result = await um_client.ingest(
             text=req.text,
             session_key=um_client._make_session_key("api"),
             agent_id="uk-api",
         )
-        return {
-            "status": "ingested",
-            "source": "manual",
-            "title": req.title or "Untitled",
-            "memories_created": result.get("memories_created", 0),
-        }
+        memories_created = result.get("memories_created", 0)
     else:
         raise HTTPException(status_code=400, detail="Provide either 'url' or 'text'")
+
+    # Auto-compile: find related topic from ingested content and compile it
+    compiled_article = None
+    if req.compile:
+        try:
+            # Use the title/source as a topic hint for compilation
+            topic_hint = title if title != "Untitled" else (req.text or "")[:200]
+            if topic_hint:
+                results = await um_client.search(topic_hint, top_k=50, include_source=True)
+                chunks = [
+                    {"text": r.get("content", ""), "source": r.get("source_session", source)}
+                    for r in results
+                ]
+                if chunks:
+                    path = await compiler.compile_topic(topic_hint, chunks)
+                    linker.generate_backlinks()
+                    linker.rebuild_index()
+                    compiled_article = str(path)
+                    global _last_compiled_at
+                    _last_compiled_at = time.time()
+        except Exception:
+            pass  # Compilation is best-effort; ingest still succeeded
+
+    return {
+        "status": "ingested",
+        "source": source,
+        "title": title,
+        "memories_created": memories_created,
+        "compiled": compiled_article,
+    }
 
 
 @app.post("/search")
@@ -295,13 +325,22 @@ async def compile_kb(req: CompileRequest) -> dict[str, Any]:
             path = await compiler.compile_topic(req.topic, chunks)
             linker.generate_backlinks()
             linker.rebuild_index()
+            global _last_compiled_at
+            _last_compiled_at = time.time()
             return {"status": "compiled", "topic": req.topic, "articles": 1, "path": str(path)}
         return {"status": "no_data", "topic": req.topic, "articles": 0}
     else:
         paths = await compiler.recompile_all()
         linker.generate_backlinks()
         linker.rebuild_index()
+        _last_compiled_at = time.time()
         return {"status": "compiled", "articles": len(paths)}
+
+
+@app.get("/api/last-compiled")
+async def last_compiled() -> dict[str, Any]:
+    """Return the timestamp of the last successful compilation (for auto-refresh)."""
+    return {"last_compiled_at": _last_compiled_at}
 
 
 @app.post("/lint")
