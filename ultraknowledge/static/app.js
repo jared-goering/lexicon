@@ -767,18 +767,25 @@
           container.style.cursor = node ? 'pointer' : 'grab';
         });
 
+      // Add gravity forces (forceX + forceY pull nodes toward center)
+      fg.d3Force('gravityX', d3.forceX(0).strength(0));
+      fg.d3Force('gravityY', d3.forceY(0).strength(0));
+
       const applyDensity = (val) => {
         // val: 0 (very sparse) → 100 (very dense)
-        // charge: -300 (strong repulsion) → -10 (minimal repulsion)
-        const charge = -300 + val * 2.9;
-        // link distance: scaled inversely — dense = shorter links
-        const baseLinkDist = Number(linkDistanceInput.value);
-        const linkScale = 1.5 - val / 100;  // 1.5x at 0, 0.5x at 100
+        // Repulsion: strong at 0, nearly zero at 100
+        const charge = -300 + val * 2.95;
         fg.d3Force('charge').strength(charge);
+        // Link distance: longer when sparse, shorter when dense
+        const baseLinkDist = Number(linkDistanceInput.value);
+        const linkScale = 2.0 - val * 0.018;  // 2.0 at 0, 0.2 at 100
         fg.d3Force('link').distance(baseLinkDist * linkScale);
+        // Gravity: pull nodes toward center when dense (0 at sparse, strong at dense)
+        const gravity = val * 0.01;  // 0 at val=0, 1.0 at val=100
+        fg.d3Force('gravityX').strength(gravity);
+        fg.d3Force('gravityY').strength(gravity);
       };
       applyDensity(Number(chargeInput.value));
-      fg.d3Force('link').distance(Number(linkDistanceInput.value));
       fg.cooldownTicks(120);
       fg.onEngineStop(() => fg.zoomToFit(500, 60));
 
