@@ -532,14 +532,27 @@
         <div class="uk-divider my-6"></div>
         <div class="flex items-center gap-3 animate-fade-in" style="animation-delay:0.15s">
           <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-1);animation:pulseGlow 1.5s ease-in-out infinite"></div>
-          <div class="loading-dots font-mono text-[10px] text-text-secondary tracking-[0.2em]">REASONING</div>
+          <div id="uk-ask-status" class="loading-dots font-mono text-[10px] text-text-secondary tracking-[0.2em]">SEARCHING KNOWLEDGE BASE</div>
         </div>
       </main>
       ${footerHTML()}
     `;
 
+    // Progressive status updates while waiting
+    const statusEl = document.getElementById('uk-ask-status');
+    const statusMsgs = [
+      { delay: 3000, text: 'REASONING' },
+      { delay: 8000, text: 'RESEARCHING THE WEB' },
+      { delay: 15000, text: 'COMPILING ANSWER' },
+      { delay: 25000, text: 'STILL WORKING — DEEP RESEARCH IN PROGRESS' },
+    ];
+    const statusTimers = statusMsgs.map(({ delay, text }) =>
+      setTimeout(() => { if (statusEl) statusEl.textContent = text; }, delay)
+    );
+
     try {
       const data = await api('POST', '/ask', { question });
+      statusTimers.forEach(clearTimeout);
       const answer = data.answer || 'No answer available.';
       const citations = data.citations || [];
       const confidence = data.confidence || 0;
@@ -597,6 +610,7 @@
 
       bindSearchInput('followup-search');
     } catch (err) {
+      statusTimers.forEach(clearTimeout);
       app().innerHTML = `
         ${headerHTML(true, false)}
         <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
