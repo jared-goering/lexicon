@@ -565,6 +565,30 @@
 
   // ─── Research View ───────────────────────────────────────────────────
   async function renderResearch(query) {
+    // Show search form when no query provided
+    if (!query || !query.trim()) {
+      app().innerHTML = `
+        ${headerHTML(true, false)}
+        <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
+          <div class="mb-8 animate-fade-in-up">
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.22em]">RESEARCH</span>
+            <h2 class="font-display text-2xl mt-3" style="line-height:1.3">Research a Topic</h2>
+            <p class="text-sm text-text-secondary mt-2">Search the web via Exa, then ingest the best results into your knowledge base.</p>
+          </div>
+          <div class="uk-divider my-6"></div>
+          <form id="research-form" class="flex gap-3 animate-fade-in-up" style="animation-delay:0.1s" onsubmit="event.preventDefault(); const q = document.getElementById('research-input').value.trim(); if (q) window.location.hash = '#/research/' + encodeURIComponent(q);">
+            <input id="research-input" type="text" placeholder="e.g. transformer architecture, RAG techniques…"
+              class="flex-1 px-4 py-3 rounded-xl border border-border-subtle font-mono text-sm"
+              style="background:var(--surface-raised); outline:none;"
+              autofocus>
+            <button type="submit" class="px-6 py-3 rounded-xl font-mono text-[10px] tracking-[0.2em] text-white" style="background:var(--accent-2)">SEARCH</button>
+          </form>
+        </main>
+        ${footerHTML()}
+      `;
+      return;
+    }
+
     app().innerHTML = `
       ${headerHTML(true, false)}
       <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
