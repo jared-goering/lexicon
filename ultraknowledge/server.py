@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import mimetypes
 from pathlib import Path
 from typing import Any
 import unicodedata
@@ -73,7 +74,11 @@ class CompileRequest(BaseModel):
 
 class ExportRequest(BaseModel):
     topic: str
-    format: str = "report"  # "slides", "report", "briefing"
+    format: str = "report"  # "slides", "report", "briefing", "html", "pdf"
+
+
+class SnapshotRequest(BaseModel):
+    slug: str
 
 
 # --- Routes ---
@@ -326,10 +331,15 @@ async def export_article(req: ExportRequest) -> dict[str, Any]:
         "slides": exporter.to_slides,
         "report": exporter.to_report,
         "briefing": exporter.to_briefing,
+        "html": exporter.to_html,
+        "pdf": exporter.to_pdf,
     }.get(req.format)
 
     if not export_fn:
-        raise HTTPException(status_code=400, detail=f"Unknown format: {req.format}. Use slides, report, or briefing.")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown format: {req.format}. Use slides, report, briefing, html, or pdf.",
+        )
 
     try:
         result = export_fn(req.topic)
@@ -337,10 +347,57 @@ async def export_article(req: ExportRequest) -> dict[str, Any]:
             "status": "exported",
             "format": result.format,
             "output_path": str(result.output_path),
+            "filename": result.output_path.name,
             "word_count": result.word_count,
         }
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Article not found: {req.topic}")
+
+
+@app.get("/api/exports/{filename}")
+async def download_export(filename: str) -> FileResponse:
+    """Serve exported files from the knowledge base exports directory."""
+    exports_dir = settings.kb_dir / "exports"
+    target = (exports_dir / filename).resolve()
+    try:
+        target.relative_to(exports_dir.resolve())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid export filename.") from exc
+
+    if not target.exists() or not target.is_file():
+        raise HTTPException(status_code=404, detail=f"Export not found: {filename}")
+
+    media_type, _ = mimetypes.guess_type(target.name)
+    return FileResponse(str(target), media_type=media_type or "application/octet-stream", filename=target.name)
+
+
+@app.post("/api/snapshot")
+async def snapshot_article(req: SnapshotRequest) -> FileResponse:
+    """Generate a static article snapshot and return it as a download."""
+    try:
+        result = exporter.snapshot_article(req.slug)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=f"Article not found: {req.slug}") from exc
+
+    return FileResponse(str(result.output_path), media_type="text/html", filename=result.output_path.name)
+
+
+@app.get("/api/snapshot/{slug}")
+async def snapshot_article_direct(slug: str) -> FileResponse:
+    """Generate a static article snapshot and serve it directly."""
+    try:
+        result = exporter.snapshot_article(slug)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=f"Article not found: {slug}") from exc
+
+    return FileResponse(str(result.output_path), media_type="text/html", filename=result.output_path.name)
+
+
+@app.post("/api/export-all")
+async def export_all_articles() -> FileResponse:
+    """Generate a self-contained HTML export of the entire knowledge base."""
+    result = exporter.export_all()
+    return FileResponse(str(result.output_path), media_type="text/html", filename=result.output_path.name)
 
 
 def _build_graph_cluster_labels(articles: dict[str, Any]) -> list[str]:

@@ -272,6 +272,25 @@
             ${idx === 0 ? `<span class="font-mono text-[10px] tracking-wider px-2 py-0.5 rounded" style="color:${accentHex}; background:${accentHex}15">ACTIVE</span>` : ''}
           </div>
 
+          <div class="article-toolbar">
+            <div>
+              <h1 class="text-3xl font-medium leading-tight">${escapeHTML(title)}</h1>
+              <p class="font-mono text-[10px] text-text-secondary tracking-widest mt-2">STATIC ARTICLE VIEW</p>
+            </div>
+            <div class="article-export-shell" id="article-export-shell">
+              <button type="button" id="article-export-btn" class="article-export-btn">
+                <span class="font-mono text-xs tracking-[0.24em]">EXPORT</span>
+              </button>
+              <div id="article-export-menu" class="article-export-menu hidden">
+                <button type="button" class="article-export-option" data-export-kind="report">REPORT (MD)</button>
+                <button type="button" class="article-export-option" data-export-kind="briefing">BRIEFING (MD)</button>
+                <button type="button" class="article-export-option" data-export-kind="slides">SLIDES (MARP)</button>
+                <button type="button" class="article-export-option" data-export-kind="snapshot">HTML SNAPSHOT</button>
+                <button type="button" class="article-export-option" data-export-kind="pdf">PDF</button>
+              </div>
+            </div>
+          </div>
+
           <article class="prose-article mt-6">
             ${renderMarkdown(content)}
           </article>
@@ -295,6 +314,7 @@
         ${footerHTML()}
       `;
 
+      bindArticleExportMenu(slug);
       bindSearchInput('article-search');
     } catch (err) {
       app().innerHTML = `
@@ -307,6 +327,76 @@
         ${footerHTML()}
       `;
     }
+  }
+
+  function bindArticleExportMenu(slug) {
+    const shell = $('#article-export-shell');
+    const button = $('#article-export-btn');
+    const menu = $('#article-export-menu');
+    if (!shell || !button || !menu) return;
+
+    const closeMenu = () => menu.classList.add('hidden');
+    const toggleMenu = (event) => {
+      event.stopPropagation();
+      menu.classList.toggle('hidden');
+    };
+    const onDocumentClick = (event) => {
+      if (!shell.contains(event.target)) closeMenu();
+    };
+
+    button.addEventListener('click', toggleMenu);
+    document.addEventListener('click', onDocumentClick);
+
+    $$('.article-export-option', menu).forEach(option => {
+      option.addEventListener('click', async () => {
+        closeMenu();
+        option.disabled = true;
+        try {
+          const filename = option.dataset.exportKind === 'snapshot'
+            ? await exportArticleSnapshot(slug)
+            : await exportArticleAsset(slug, option.dataset.exportKind);
+          showToast(`Exported as ${filename}`);
+        } catch (err) {
+          showToast(`Export failed: ${err.message}`);
+        } finally {
+          option.disabled = false;
+        }
+      });
+    });
+  }
+
+  async function exportArticleAsset(slug, format) {
+    const result = await api('POST', '/export', { topic: slug, format });
+    if (!result.filename) throw new Error('Missing export filename');
+    await downloadFile(`/api/exports/${encodeURIComponent(result.filename)}`, result.filename);
+    return result.filename;
+  }
+
+  async function exportArticleSnapshot(slug) {
+    return downloadFile('/api/snapshot', null, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug }),
+    });
+  }
+
+  async function downloadFile(url, fallbackFilename, options) {
+    const response = await fetch(url, options || {});
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const filename = extractFilename(response.headers.get('content-disposition')) || fallbackFilename || 'download';
+    const objectUrl = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(objectUrl);
+    return filename;
   }
 
   // ─── Q&A View ────────────────────────────────────────────────────────
@@ -856,6 +946,14 @@
 
   function escapeAttr(str) {
     return escapeHTML(str || '');
+  }
+
+  function extractFilename(contentDisposition) {
+    if (!contentDisposition) return '';
+    const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8Match) return decodeURIComponent(utf8Match[1]);
+    const plainMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+    return plainMatch ? plainMatch[1] : '';
   }
 
   function truncate(str, len) {

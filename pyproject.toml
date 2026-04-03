@@ -34,12 +34,13 @@ dependencies = [
     "readabilipy>=0.2",
     "trafilatura>=1.6",
     "pydantic>=2.0",
+    "pyyaml>=6.0",
     "sentence-transformers>=3.0",
 ]
 
 [project.optional-dependencies]
 local = ["ollama>=0.2"]
-pdf = ["pymupdf>=1.24"]
+pdf = ["markdown>=3.6", "weasyprint>=61.2", "pdfkit>=1.0", "pymupdf>=1.24"]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4", "pytest-httpx>=0.30"]
 
 [project.scripts]
