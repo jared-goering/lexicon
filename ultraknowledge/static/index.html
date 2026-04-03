@@ -6,26 +6,31 @@
   <title>ULTRAKNOWLEDGE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            bg: '#F5F3EF',
-            surface: '#FFFFFF',
-            text: '#1A1A1A',
-            'text-secondary': '#6B6B6B',
-            'accent-1': '#E8913A',
-            'accent-2': '#3A8FE8',
+            bg: '#F0EDE7',
+            'bg-warm': '#EAE6DE',
+            surface: '#FAF8F4',
+            'surface-raised': '#FFFDF9',
+            text: '#1A1714',
+            'text-secondary': '#7A7468',
+            'text-muted': '#A9A29A',
+            'accent-1': '#D97B2B',
+            'accent-2': '#2E7DC9',
             'accent-3': '#6B3AE8',
-            'accent-4': '#3AE89B',
-            border: '#E5E2DC',
+            'accent-4': '#2AA872',
+            border: '#DDD8CE',
+            'border-subtle': '#E8E4DC',
           },
           fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
+            display: ['"Instrument Serif"', 'Georgia', 'serif'],
+            sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
           },
         },
       },
@@ -38,8 +43,9 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css">
   <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 </head>
-<body class="bg-bg text-text min-h-screen font-sans">
+<body class="bg-bg text-text min-h-screen font-sans antialiased">
   <div id="app"></div>
+  <div class="grain-overlay" aria-hidden="true"></div>
   <script src="/static/app.js"></script>
 </body>
 </html>

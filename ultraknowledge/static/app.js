@@ -8,9 +8,17 @@
   const app = () => $('#app');
 
   const ACCENTS = ['accent-1', 'accent-2', 'accent-3', 'accent-4'];
-  const ACCENT_HEX = { 'accent-1': '#E8913A', 'accent-2': '#3A8FE8', 'accent-3': '#6B3AE8', 'accent-4': '#3AE89B' };
-  const GRAPH_BG = '#F5F3EF';
-  const GRAPH_BORDER = '#E5E2DC';
+  const ACCENT_HEX = { 'accent-1': '#D97B2B', 'accent-2': '#2E7DC9', 'accent-3': '#6B3AE8', 'accent-4': '#2AA872' };
+  const GRAPH_BG = '#F0EDE7';
+  const GRAPH_BORDER = '#DDD8CE';
+
+  // Category icons (inline SVG for each accent)
+  const CATEGORY_ICONS = [
+    '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M10 2L2 7l8 5 8-5-8-5zM2 13l8 5 8-5M2 10l8 5 8-5"/></svg>',
+    '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="10" cy="10" r="7"/><path d="M10 3v14M3 10h14M5 5l10 10M15 5L5 15"/></svg>',
+    '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 3h5v5H3zM12 3h5v5h-5zM3 12h5v5H3zM12 12h5v5h-5z"/></svg>',
+    '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M10 2v16M6 6l4-4 4 4M2 10h16M6 14l4 4 4-4"/></svg>',
+  ];
 
   // ─── State ───────────────────────────────────────────────────────────
   let state = {
@@ -107,43 +115,54 @@
 
   // ─── Shared Components ───────────────────────────────────────────────
   function logoHTML() {
-    return `<div class="flex items-center gap-1.5">
-      <div class="grid grid-cols-2 gap-0.5">
-        <div class="w-2 h-2 rounded-full bg-accent-1"></div>
-        <div class="w-2 h-2 rounded-full bg-accent-2"></div>
-        <div class="w-2 h-2 rounded-full bg-accent-3"></div>
-        <div class="w-2 h-2 rounded-full bg-accent-4"></div>
+    return `<div class="uk-logo">
+      <div class="uk-logo-grid">
+        <div class="uk-logo-dot" style="background:var(--accent-1)"></div>
+        <div class="uk-logo-dot" style="background:var(--accent-2)"></div>
+        <div class="uk-logo-dot" style="background:var(--accent-3)"></div>
+        <div class="uk-logo-dot" style="background:var(--accent-4)"></div>
       </div>
+      <span class="uk-logo-text">UK</span>
     </div>`;
   }
 
   function headerHTML(showBack, showIngest) {
-    return `<header class="fixed top-0 left-0 right-0 bg-bg/90 backdrop-blur-sm z-50 border-b border-border">
-      <div class="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+    return `<header class="uk-header">
+      <div class="uk-header-inner">
         <div class="flex items-center gap-4">
-          ${showBack ? `<button onclick="window.location.hash=''" class="font-mono text-xs text-text-secondary hover:text-text tracking-wide">← BACK</button>` : logoHTML()}
+          ${showBack ? `<button onclick="window.location.hash=''" class="font-mono text-[10px] text-text-secondary hover:text-text tracking-[0.2em] transition-colors flex items-center gap-2"><span class="text-sm">&#8592;</span> BACK</button>` : logoHTML()}
         </div>
-        ${showIngest !== false ? `<button onclick="openIngestModal()" class="font-mono text-xs tracking-wider border border-border px-3 py-1.5 hover:bg-surface transition-colors">+ INGEST</button>` : ''}
+        ${showIngest !== false ? `<button onclick="openIngestModal()" class="uk-ingest-btn">+ INGEST</button>` : ''}
       </div>
     </header>`;
   }
 
   function footerHTML() {
-    return `<footer class="fixed bottom-0 left-0 right-0 bg-bg/90 backdrop-blur-sm border-t border-border z-50">
-      <div class="max-w-5xl mx-auto px-6 h-10 flex items-center justify-between">
-        <span class="font-mono text-[10px] text-text-secondary tracking-widest">COMPILED INDEX: ${state.stats.article_count.toLocaleString()} ARTICLES</span>
-        <span class="font-mono text-[10px] text-text-secondary tracking-widest">SYSTEM STATE: ${state.stats.system_state}</span>
+    const stateColor = state.stats.system_state === 'READY' ? 'var(--accent-4)' : 'var(--accent-1)';
+    return `<footer class="uk-footer">
+      <div class="uk-footer-inner">
+        <div class="uk-footer-stat">
+          <span class="font-display italic text-[11px]" style="color:var(--text-secondary)">${state.stats.article_count.toLocaleString()}</span>
+          <span>ARTICLES COMPILED</span>
+        </div>
+        <div class="uk-footer-stat">
+          <span class="uk-footer-dot" style="background:${stateColor}"></span>
+          <span>${state.stats.system_state}</span>
+        </div>
       </div>
     </footer>`;
   }
 
   function searchBarHTML(placeholder, id, scope) {
     const scopeAttr = scope ? `data-scope="${scope}"` : '';
-    return `<div class="relative w-full max-w-2xl mx-auto">
+    return `<div class="uk-search-wrap">
       <input type="text" id="${id}" ${scopeAttr}
-        class="w-full bg-surface border border-border rounded-lg px-5 py-4 text-base font-sans placeholder:text-text-secondary/60 focus:outline-none focus:border-accent-2/40 transition-colors"
+        class="uk-search-input"
         placeholder="${placeholder}">
-      <span class="absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[10px] text-text-secondary/50 tracking-widest pointer-events-none">ENTER TO ASK</span>
+      <div class="uk-search-hint">
+        <span class="uk-search-kbd">&#8984;K</span>
+        <span class="uk-search-kbd">ENTER</span>
+      </div>
     </div>`;
   }
 
@@ -153,14 +172,21 @@
     const isActive = index === 0;
     const title = article.title || article.slug;
     const slug = article.slug;
-    return `<div class="bg-surface border border-border rounded-lg p-5 cursor-pointer hover:border-${accent}/40 transition-colors topic-card" onclick="window.location.hash='#/article/${encodeURIComponent(slug)}'">
+    const icon = CATEGORY_ICONS[index % CATEGORY_ICONS.length];
+    const fillWidth = Math.min(100, 30 + Math.random() * 70);
+
+    return `<div class="topic-card topic-card-${accent} animate-fade-in-up stagger-${index + 1}" onclick="window.location.hash='#/article/${encodeURIComponent(slug)}'">
+      <span class="topic-card-number">${String(index + 1).padStart(2, '0')}</span>
       <div class="flex items-center justify-between mb-3">
-        <span class="font-mono text-[10px] text-text-secondary tracking-widest">TOPIC // #${index + 1}</span>
-        ${isActive ? `<span class="font-mono text-[10px] tracking-wider px-2 py-0.5 rounded" style="color:${accentHex}; background:${accentHex}15">ACTIVE</span>` : ''}
+        <div class="flex items-center gap-2.5">
+          <div style="width:18px;height:18px;color:${accentHex};opacity:0.6">${icon}</div>
+          <span class="topic-card-label">TOPIC ${String(index + 1).padStart(2, '0')}</span>
+        </div>
+        ${isActive ? `<span class="topic-card-tag" style="color:${accentHex}; background:${accentHex}12"><span style="width:5px;height:5px;border-radius:50%;background:${accentHex};display:inline-block"></span> LATEST</span>` : ''}
       </div>
-      <h3 class="text-base font-medium mb-4">${title}</h3>
-      <div class="h-1 rounded-full bg-border overflow-hidden">
-        <div class="h-full rounded-full" style="width:${Math.min(100, 30 + Math.random() * 70)}%; background:${accentHex}"></div>
+      <h3 class="topic-card-title">${title}</h3>
+      <div class="topic-card-bar">
+        <div class="topic-card-bar-fill" style="width:${fillWidth}%; background:${accentHex}"></div>
       </div>
     </div>`;
   }
@@ -177,13 +203,13 @@
     app().innerHTML = `
       ${headerHTML(false, true)}
       <main class="min-h-screen flex flex-col items-center justify-center px-6 pb-20 pt-20">
-        <div class="text-center mb-10">
-          <h1 class="font-mono text-2xl sm:text-3xl tracking-[0.3em] font-medium mb-2">ULTRAKNOWLEDGE</h1>
-          <p class="font-mono text-xs text-text-secondary tracking-widest">LLM-COMPILED KNOWLEDGE BASE</p>
+        <div class="uk-hero text-center mb-12 animate-fade-in-up">
+          <h1 class="uk-hero-title">Ultra<em class="font-display italic" style="font-style:italic">Knowledge</em></h1>
+          <p class="uk-hero-subtitle">LLM-COMPILED KNOWLEDGE BASE</p>
         </div>
-        <div class="w-full max-w-4xl flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div class="w-full max-w-4xl flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-fade-in-up" style="animation-delay:0.1s">
           <div class="flex-1">
-            ${searchBarHTML('Ask your knowledge...', 'home-search')}
+            ${searchBarHTML('Ask your knowledge base anything\u2026', 'home-search')}
           </div>
           <button onclick="window.location.hash='#/graph'" class="graph-launch-btn group">
             <span class="graph-launch-icon" aria-hidden="true">
@@ -195,16 +221,32 @@
                 <circle cx="6.5" cy="18" r="2.25" fill="currentColor" stroke="none"></circle>
               </svg>
             </span>
-            <span class="font-mono text-xs tracking-[0.24em]">GRAPH</span>
+            <span class="font-mono text-[10px] tracking-[0.24em]">GRAPH</span>
           </button>
         </div>
         ${state.articles.length > 0 ? `
-          <div class="grid ${gridCols} gap-4 mt-12 w-full max-w-3xl">
-            ${cards}
+          <div class="w-full max-w-4xl mt-16">
+            <div class="flex items-center justify-between mb-6 px-1">
+              <div class="flex items-center gap-3">
+                <div class="uk-divider" style="width:2rem"></div>
+                <span class="font-mono text-[9px] text-text-muted tracking-[0.28em]">KNOWLEDGE INDEX</span>
+                <div class="uk-divider" style="width:2rem"></div>
+              </div>
+              <span class="font-mono text-[9px] text-text-muted tracking-[0.2em]">${state.articles.length} TOPICS</span>
+            </div>
+            <div class="grid ${gridCols} gap-5">
+              ${cards}
+            </div>
           </div>
         ` : `
-          <div class="mt-12 text-center">
-            <p class="font-mono text-xs text-text-secondary tracking-wider">NO ARTICLES YET — INGEST SOME KNOWLEDGE</p>
+          <div class="uk-empty-state mt-16 animate-fade-in-up" style="animation-delay:0.2s">
+            <div class="uk-empty-state-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="color:var(--text-muted)">
+                <path d="M12 6v6l4 2M12 2a10 10 0 100 20 10 10 0 000-20z"/>
+              </svg>
+            </div>
+            <p class="font-display italic text-xl text-text-secondary mb-2">No articles yet</p>
+            <p class="font-mono text-[10px] text-text-muted tracking-[0.2em]">INGEST SOME KNOWLEDGE TO GET STARTED</p>
           </div>
         `}
       </main>
@@ -218,9 +260,9 @@
   async function renderArticle(slug) {
     app().innerHTML = `
       ${headerHTML(true, true)}
-      <main class="max-w-3xl mx-auto px-6 pt-20 pb-28">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="font-mono text-[10px] text-text-secondary tracking-widest">LOADING...</span>
+      <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
+        <div class="flex items-center gap-2 mb-2 animate-fade-in">
+          <div class="loading-dots font-mono text-[10px] text-text-muted tracking-widest">LOADING</div>
         </div>
       </main>
     `;
@@ -266,49 +308,55 @@
 
       app().innerHTML = `
         ${headerHTML(true, true)}
-        <main class="max-w-3xl mx-auto px-6 pt-20 pb-28">
-          <div class="flex items-center gap-3 mb-1">
-            <span class="font-mono text-[10px] text-text-secondary tracking-widest">TOPIC // #${idx >= 0 ? idx + 1 : '—'}</span>
-            ${idx === 0 ? `<span class="font-mono text-[10px] tracking-wider px-2 py-0.5 rounded" style="color:${accentHex}; background:${accentHex}15">ACTIVE</span>` : ''}
-          </div>
-
-          <div class="article-toolbar">
-            <div>
-              <h1 class="text-3xl font-medium leading-tight">${escapeHTML(title)}</h1>
-              <p class="font-mono text-[10px] text-text-secondary tracking-widest mt-2">STATIC ARTICLE VIEW</p>
+        <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
+          <div class="animate-fade-in-up">
+            <div class="flex items-center gap-3 mb-4">
+              <span class="topic-card-label">TOPIC ${String(idx >= 0 ? idx + 1 : 0).padStart(2, '0')}</span>
+              ${idx === 0 ? `<span class="topic-card-tag" style="color:${accentHex}; background:${accentHex}12"><span style="width:5px;height:5px;border-radius:50%;background:${accentHex};display:inline-block"></span> LATEST</span>` : ''}
             </div>
-            <div class="article-export-shell" id="article-export-shell">
-              <button type="button" id="article-export-btn" class="article-export-btn">
-                <span class="font-mono text-xs tracking-[0.24em]">EXPORT</span>
-              </button>
-              <div id="article-export-menu" class="article-export-menu hidden">
-                <button type="button" class="article-export-option" data-export-kind="report">REPORT (MD)</button>
-                <button type="button" class="article-export-option" data-export-kind="briefing">BRIEFING (MD)</button>
-                <button type="button" class="article-export-option" data-export-kind="slides">SLIDES (MARP)</button>
-                <button type="button" class="article-export-option" data-export-kind="snapshot">HTML SNAPSHOT</button>
-                <button type="button" class="article-export-option" data-export-kind="pdf">PDF</button>
+
+            <div class="article-toolbar">
+              <div>
+                <h1 class="font-display text-3xl sm:text-4xl leading-tight" style="letter-spacing:-0.01em">${escapeHTML(title)}</h1>
+                <p class="font-mono text-[9px] text-text-muted tracking-[0.22em] mt-3">COMPILED ARTICLE &middot; STATIC VIEW</p>
+              </div>
+              <div class="article-export-shell" id="article-export-shell">
+                <button type="button" id="article-export-btn" class="article-export-btn">
+                  <span class="font-mono text-[10px] tracking-[0.2em]">EXPORT</span>
+                </button>
+                <div id="article-export-menu" class="article-export-menu hidden">
+                  <button type="button" class="article-export-option" data-export-kind="report">REPORT (MD)</button>
+                  <button type="button" class="article-export-option" data-export-kind="briefing">BRIEFING (MD)</button>
+                  <button type="button" class="article-export-option" data-export-kind="slides">SLIDES (MARP)</button>
+                  <button type="button" class="article-export-option" data-export-kind="snapshot">HTML SNAPSHOT</button>
+                  <button type="button" class="article-export-option" data-export-kind="pdf">PDF</button>
+                </div>
               </div>
             </div>
           </div>
 
-          <article class="prose-article mt-6">
+          <div class="uk-divider my-8"></div>
+
+          <article class="prose-article animate-fade-in-up" style="animation-delay:0.12s">
             ${renderMarkdown(content)}
           </article>
 
           ${relatedTopics.length > 0 ? `
-            <div class="border-t border-border mt-10 pt-6">
-              <span class="font-mono text-[10px] text-text-secondary tracking-widest block mb-3">RELATED TOPICS</span>
+            <div class="mt-12 pt-8 animate-fade-in-up" style="animation-delay:0.2s; border-top: 1px solid var(--border-subtle)">
+              <span class="font-mono text-[9px] text-text-muted tracking-[0.22em] block mb-4">RELATED TOPICS</span>
               <div class="flex flex-wrap gap-2">
                 ${relatedTopics.map(t => {
                   const s = t.toLowerCase().replace(/\s+/g, '-');
-                  return `<a href="#/article/${encodeURIComponent(s)}" class="font-mono text-xs text-accent-2 hover:underline">[[${t}]]</a>`;
-                }).join(' · ')}
+                  return `<a href="#/article/${encodeURIComponent(s)}" class="inline-flex items-center gap-1.5 font-mono text-[11px] text-accent-2 hover:text-text px-3 py-1.5 rounded-lg border border-border-subtle hover:border-accent-2/30 transition-all" style="background:rgba(46,125,201,0.03)">
+                    <span style="opacity:0.4">&#91;&#91;</span>${t}<span style="opacity:0.4">&#93;&#93;</span>
+                  </a>`;
+                }).join('')}
               </div>
             </div>
           ` : ''}
 
-          <div class="border-t border-border mt-8 pt-6">
-            ${searchBarHTML(`Ask about ${title}...`, 'article-search', slug)}
+          <div class="mt-10 pt-8 animate-fade-in-up" style="animation-delay:0.25s; border-top: 1px solid var(--border-subtle)">
+            ${searchBarHTML(`Ask about ${title}\u2026`, 'article-search', slug)}
           </div>
         </main>
         ${footerHTML()}
@@ -319,10 +367,17 @@
     } catch (err) {
       app().innerHTML = `
         ${headerHTML(true, true)}
-        <main class="max-w-3xl mx-auto px-6 pt-20 pb-28 text-center">
-          <p class="font-mono text-xs text-text-secondary tracking-wider mt-20">ARTICLE NOT FOUND: ${slug}</p>
-          <p class="text-sm text-text-secondary mt-4">This topic hasn't been compiled yet.</p>
-          <button onclick="window.location.hash='#/research/${encodeURIComponent(slug.replace(/-/g, ' '))}'" class="mt-6 font-mono text-xs tracking-wider border border-border px-4 py-2 hover:bg-surface transition-colors">RESEARCH THIS TOPIC →</button>
+        <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
+          <div class="uk-empty-state mt-16 animate-fade-in-up">
+            <div class="uk-empty-state-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="color:var(--text-muted)">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+              </svg>
+            </div>
+            <p class="font-display italic text-xl text-text-secondary mb-2">Article not found</p>
+            <p class="font-mono text-[10px] text-text-muted tracking-[0.15em] mb-6">${escapeHTML(slug)}</p>
+            <button onclick="window.location.hash='#/research/${encodeURIComponent(slug.replace(/-/g, ' '))}'" class="uk-ingest-btn">RESEARCH THIS TOPIC &rarr;</button>
+          </div>
         </main>
         ${footerHTML()}
       `;
@@ -403,14 +458,15 @@
   async function renderAsk(question) {
     app().innerHTML = `
       ${headerHTML(true, false)}
-      <main class="max-w-3xl mx-auto px-6 pt-20 pb-28">
-        <div class="mb-8">
-          <span class="font-mono text-[10px] text-text-secondary tracking-widest">QUESTION</span>
-          <h2 class="text-xl font-medium mt-2">${escapeHTML(question)}</h2>
+      <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
+        <div class="mb-8 animate-fade-in-up">
+          <span class="font-mono text-[9px] text-text-muted tracking-[0.22em]">QUESTION</span>
+          <h2 class="font-display text-2xl mt-3" style="line-height:1.3">${escapeHTML(question)}</h2>
         </div>
-        <div class="border-t border-border my-6"></div>
-        <div class="flex items-center gap-2">
-          <div class="loading-dots font-mono text-xs text-text-secondary tracking-widest">THINKING</div>
+        <div class="uk-divider my-6"></div>
+        <div class="flex items-center gap-3 animate-fade-in" style="animation-delay:0.15s">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-1);animation:pulseGlow 1.5s ease-in-out infinite"></div>
+          <div class="loading-dots font-mono text-[10px] text-text-secondary tracking-[0.2em]">REASONING</div>
         </div>
       </main>
       ${footerHTML()}
@@ -425,49 +481,49 @@
       const suggestedQueries = data.suggested_queries || [];
 
       const confLabel = confidence > 0.7 ? 'HIGH' : confidence > 0.4 ? 'MEDIUM' : 'LOW';
-      const confColor = confidence > 0.7 ? 'text-accent-4' : confidence > 0.4 ? 'text-accent-1' : 'text-text-secondary';
+      const confClass = confidence > 0.7 ? 'confidence-high' : confidence > 0.4 ? 'confidence-medium' : 'confidence-low';
 
       app().innerHTML = `
         ${headerHTML(true, false)}
-        <main class="max-w-3xl mx-auto px-6 pt-20 pb-28">
-          <div class="mb-8">
-            <span class="font-mono text-[10px] text-text-secondary tracking-widest">QUESTION</span>
-            <h2 class="text-xl font-medium mt-2">${escapeHTML(question)}</h2>
+        <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
+          <div class="mb-8 animate-fade-in-up">
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.22em]">QUESTION</span>
+            <h2 class="font-display text-2xl mt-3" style="line-height:1.3">${escapeHTML(question)}</h2>
           </div>
-          <div class="border-t border-border my-6"></div>
+          <div class="uk-divider my-6"></div>
 
-          <div class="prose-article">
+          <div class="prose-article animate-fade-in-up" style="animation-delay:0.08s">
             ${renderMarkdown(answer)}
           </div>
 
           ${citations.length > 0 ? `
-            <div class="border-t border-border mt-8 pt-6">
-              <span class="font-mono text-[10px] text-text-secondary tracking-widest block mb-3">SOURCES CITED</span>
-              <div class="space-y-2">
+            <div class="mt-10 pt-6 animate-fade-in-up" style="animation-delay:0.15s; border-top: 1px solid var(--border-subtle)">
+              <span class="font-mono text-[9px] text-text-muted tracking-[0.22em] block mb-4">SOURCES CITED</span>
+              <div class="space-y-2.5">
                 ${citations.map((c, i) => `
-                  <div class="flex items-start gap-2 text-sm">
-                    <span class="font-mono text-[10px] text-text-secondary">[${i + 1}]</span>
-                    <span>${escapeHTML(c.title)}${c.score ? ` <span class="font-mono text-[10px] text-text-secondary">· relevance: ${c.score.toFixed(2)}</span>` : ''}</span>
+                  <div class="flex items-start gap-3 text-sm">
+                    <span class="font-display italic text-text-muted text-lg leading-none mt-0.5">${i + 1}</span>
+                    <span class="text-text-secondary">${escapeHTML(c.title)}${c.score ? ` <span class="font-mono text-[9px] text-text-muted">&middot; ${c.score.toFixed(2)}</span>` : ''}</span>
                   </div>
                 `).join('')}
               </div>
             </div>
           ` : ''}
 
-          <div class="border-t border-border mt-6 pt-4 flex items-center gap-6">
-            <span class="font-mono text-[10px] tracking-widest ${confColor}">CONFIDENCE: ${confLabel}</span>
-            <span class="font-mono text-[10px] text-text-secondary tracking-widest">${citations.length} ARTICLES REFERENCED</span>
+          <div class="flex items-center gap-6 mt-8 pt-5" style="border-top: 1px solid var(--border-subtle)">
+            <span class="font-mono text-[9px] tracking-[0.2em] ${confClass}">CONFIDENCE: ${confLabel}</span>
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.2em]">${citations.length} ARTICLES</span>
           </div>
 
           ${needsResearch || suggestedQueries.length > 0 ? `
             <button onclick="window.location.hash='#/research/${encodeURIComponent(question)}'"
-              class="mt-6 font-mono text-xs tracking-wider border border-border px-4 py-2 hover:bg-surface transition-colors">
-              RESEARCH THIS FURTHER →
+              class="mt-6 uk-ingest-btn">
+              RESEARCH FURTHER &rarr;
             </button>
           ` : ''}
 
-          <div class="border-t border-border mt-8 pt-6">
-            ${searchBarHTML('Ask a follow-up...', 'followup-search')}
+          <div class="mt-10 pt-8" style="border-top: 1px solid var(--border-subtle)">
+            ${searchBarHTML('Ask a follow-up\u2026', 'followup-search')}
           </div>
         </main>
         ${footerHTML()}
@@ -477,14 +533,14 @@
     } catch (err) {
       app().innerHTML = `
         ${headerHTML(true, false)}
-        <main class="max-w-3xl mx-auto px-6 pt-20 pb-28">
-          <div class="mb-8">
-            <span class="font-mono text-[10px] text-text-secondary tracking-widest">QUESTION</span>
-            <h2 class="text-xl font-medium mt-2">${escapeHTML(question)}</h2>
+        <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
+          <div class="mb-8 animate-fade-in-up">
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.22em]">QUESTION</span>
+            <h2 class="font-display text-2xl mt-3" style="line-height:1.3">${escapeHTML(question)}</h2>
           </div>
-          <div class="border-t border-border my-6"></div>
-          <p class="text-sm text-text-secondary">Something went wrong while processing your question. Please try again.</p>
-          <p class="font-mono text-xs text-text-secondary mt-2">${escapeHTML(err.message)}</p>
+          <div class="uk-divider my-6"></div>
+          <p class="text-sm text-text-secondary">Something went wrong while processing your question.</p>
+          <p class="font-mono text-[10px] text-text-muted mt-2">${escapeHTML(err.message)}</p>
         </main>
         ${footerHTML()}
       `;
@@ -495,14 +551,15 @@
   async function renderResearch(query) {
     app().innerHTML = `
       ${headerHTML(true, false)}
-      <main class="max-w-3xl mx-auto px-6 pt-20 pb-28">
-        <div class="mb-8">
-          <span class="font-mono text-[10px] text-text-secondary tracking-widest">RESEARCH</span>
-          <h2 class="text-xl font-medium mt-2">${escapeHTML(query)}</h2>
+      <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
+        <div class="mb-8 animate-fade-in-up">
+          <span class="font-mono text-[9px] text-text-muted tracking-[0.22em]">RESEARCH</span>
+          <h2 class="font-display text-2xl mt-3" style="line-height:1.3">${escapeHTML(query)}</h2>
         </div>
-        <div class="border-t border-border my-6"></div>
-        <div class="flex items-center gap-2">
-          <div class="loading-dots font-mono text-xs text-text-secondary tracking-widest">SEARCHING</div>
+        <div class="uk-divider my-6"></div>
+        <div class="flex items-center gap-3 animate-fade-in" style="animation-delay:0.15s">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-2);animation:pulseGlow 1.5s ease-in-out infinite"></div>
+          <div class="loading-dots font-mono text-[10px] text-text-secondary tracking-[0.2em]">SEARCHING</div>
         </div>
       </main>
       ${footerHTML()}
@@ -514,24 +571,24 @@
 
       app().innerHTML = `
         ${headerHTML(true, false)}
-        <main class="max-w-3xl mx-auto px-6 pt-20 pb-28">
-          <div class="mb-6">
-            <span class="font-mono text-[10px] text-text-secondary tracking-widest">RESEARCH</span>
-            <h2 class="text-xl font-medium mt-2">${escapeHTML(query)}</h2>
-            <p class="font-mono text-xs text-text-secondary mt-2 tracking-wider">FOUND ${results.length} SOURCES VIA EXA</p>
+        <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
+          <div class="mb-6 animate-fade-in-up">
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.22em]">RESEARCH</span>
+            <h2 class="font-display text-2xl mt-3" style="line-height:1.3">${escapeHTML(query)}</h2>
+            <p class="font-mono text-[9px] text-text-muted mt-3 tracking-[0.2em]">FOUND ${results.length} SOURCES VIA EXA</p>
           </div>
-          <div class="border-t border-border my-6"></div>
+          <div class="uk-divider my-6"></div>
 
-          <div class="space-y-4" id="research-results">
+          <div class="space-y-3" id="research-results">
             ${results.map((r, i) => {
               const checked = (r.score || 0) > 0.7 ? 'checked' : '';
               const domain = extractDomain(r.url);
-              return `<label class="flex items-start gap-3 p-4 border border-border rounded-lg hover:bg-surface/50 cursor-pointer transition-colors">
+              return `<label class="flex items-start gap-3 p-4 border border-border-subtle rounded-xl hover:bg-surface/50 cursor-pointer transition-all animate-fade-in-up stagger-${Math.min(i + 1, 5)}" style="background:var(--surface-raised)">
                 <input type="checkbox" ${checked} data-url="${escapeAttr(r.url)}" data-title="${escapeAttr(r.title)}" class="research-check mt-1 accent-accent-2">
                 <div class="flex-1 min-w-0">
                   <div class="font-medium text-sm">${escapeHTML(r.title)}</div>
-                  <div class="font-mono text-[10px] text-text-secondary mt-1 tracking-wider">
-                    ${escapeHTML(domain)} · relevance: ${(r.score || 0).toFixed(2)}
+                  <div class="font-mono text-[9px] text-text-muted mt-1.5 tracking-[0.1em]">
+                    ${escapeHTML(domain)} &middot; relevance: ${(r.score || 0).toFixed(2)}
                   </div>
                 </div>
               </label>`;
@@ -540,10 +597,15 @@
 
           ${results.length > 0 ? `
             <button id="ingest-selected-btn" onclick="ingestSelected()"
-              class="mt-6 font-mono text-xs tracking-wider bg-text text-bg px-5 py-2.5 rounded hover:bg-text/90 transition-colors">
+              class="mt-8 font-mono text-[10px] tracking-[0.2em] bg-text text-bg px-6 py-3 rounded-lg hover:opacity-90 transition-opacity">
               INGEST SELECTED (<span id="selected-count">${results.filter(r => (r.score || 0) > 0.7).length}</span>)
             </button>
-          ` : '<p class="text-sm text-text-secondary">No results found. Try a different query.</p>'}
+          ` : `
+            <div class="uk-empty-state mt-8">
+              <p class="font-display italic text-lg text-text-secondary">No results found</p>
+              <p class="font-mono text-[10px] text-text-muted tracking-[0.15em] mt-1">TRY A DIFFERENT QUERY</p>
+            </div>
+          `}
         </main>
         ${footerHTML()}
       `;
@@ -555,14 +617,14 @@
     } catch (err) {
       app().innerHTML = `
         ${headerHTML(true, false)}
-        <main class="max-w-3xl mx-auto px-6 pt-20 pb-28">
-          <div class="mb-8">
-            <span class="font-mono text-[10px] text-text-secondary tracking-widest">RESEARCH</span>
-            <h2 class="text-xl font-medium mt-2">${escapeHTML(query)}</h2>
+        <main class="max-w-3xl mx-auto px-6 pt-24 pb-28">
+          <div class="mb-8 animate-fade-in-up">
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.22em]">RESEARCH</span>
+            <h2 class="font-display text-2xl mt-3" style="line-height:1.3">${escapeHTML(query)}</h2>
           </div>
-          <div class="border-t border-border my-6"></div>
+          <div class="uk-divider my-6"></div>
           <p class="text-sm text-text-secondary">Research failed. This may require an Exa API key.</p>
-          <p class="font-mono text-xs text-text-secondary mt-2">${escapeHTML(err.message)}</p>
+          <p class="font-mono text-[10px] text-text-muted mt-2">${escapeHTML(err.message)}</p>
         </main>
         ${footerHTML()}
       `;
@@ -575,10 +637,10 @@
       <main class="graph-shell">
         <header class="graph-topbar">
           <div class="flex items-center gap-4">
-            <button onclick="window.location.hash=''" class="font-mono text-xs text-text-secondary hover:text-text tracking-[0.24em] transition-colors">← BACK</button>
+            <button onclick="window.location.hash=''" class="font-mono text-[10px] text-text-secondary hover:text-text tracking-[0.2em] transition-colors flex items-center gap-2"><span class="text-sm">&#8592;</span> BACK</button>
             <div>
-              <h1 class="font-mono text-sm sm:text-base tracking-[0.28em]">KNOWLEDGE GRAPH</h1>
-              <p class="font-mono text-[10px] text-text-secondary tracking-[0.24em] mt-1">MAPPING ARTICLE RELATIONSHIPS</p>
+              <h1 class="font-display text-lg sm:text-xl" style="letter-spacing:-0.01em">Knowledge Graph</h1>
+              <p class="font-mono text-[9px] text-text-muted tracking-[0.2em] mt-0.5">MAPPING ARTICLE RELATIONSHIPS</p>
             </div>
           </div>
           <div class="graph-stats">
@@ -687,9 +749,9 @@
           const boxX = node.x + radius + 6 / globalScale;
           const boxY = node.y - fontSize;
 
-          ctx.fillStyle = 'rgba(245, 243, 239, 0.92)';
+          ctx.fillStyle = 'rgba(240, 237, 231, 0.92)';
           ctx.fillRect(boxX - padX, boxY - padY, textWidth + padX * 2, fontSize + padY * 2);
-          ctx.fillStyle = '#1A1A1A';
+          ctx.fillStyle = '#1A1714';
           ctx.fillText(label, boxX, node.y + fontSize * 0.15);
         })
         .nodePointerAreaPaint((node, color, ctx) => {
@@ -772,44 +834,49 @@
     modal.id = 'ingest-modal';
     modal.className = 'fixed inset-0 z-[100] flex items-center justify-center';
     modal.innerHTML = `
-      <div class="absolute inset-0 bg-text/30 backdrop-blur-sm" onclick="closeIngestModal()"></div>
-      <div class="relative bg-bg border border-border rounded-xl w-full max-w-lg mx-4 p-6 shadow-lg max-h-[80vh] overflow-y-auto">
-        <div class="flex items-center justify-between mb-6">
-          <span class="font-mono text-xs tracking-widest">INGEST NEW KNOWLEDGE</span>
-          <button onclick="closeIngestModal()" class="text-text-secondary hover:text-text text-lg leading-none">&times;</button>
+      <div class="absolute inset-0 bg-text/30 backdrop-blur-sm animate-fade-in" onclick="closeIngestModal()"></div>
+      <div class="relative bg-bg border border-border rounded-2xl w-full max-w-lg mx-4 p-7 max-h-[80vh] overflow-y-auto animate-scale-in" style="box-shadow: 0 24px 64px rgba(26,23,20,0.12)">
+        <div class="flex items-center justify-between mb-7">
+          <div>
+            <span class="font-mono text-[9px] tracking-[0.22em] text-text-muted block mb-1">NEW ENTRY</span>
+            <span class="font-display text-lg">Ingest Knowledge</span>
+          </div>
+          <button onclick="closeIngestModal()" class="text-text-muted hover:text-text text-xl leading-none transition-colors w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg-warm">&times;</button>
         </div>
 
         <div class="space-y-4">
-          <input type="text" id="ingest-url" placeholder="Paste a URL..."
-            class="w-full bg-surface border border-border rounded-lg px-4 py-3 text-sm font-sans placeholder:text-text-secondary/60 focus:outline-none focus:border-accent-2/40 transition-colors">
+          <input type="text" id="ingest-url" placeholder="Paste a URL\u2026"
+            class="uk-search-input" style="font-size:0.9375rem;padding:0.85rem 1.15rem">
 
-          <div class="flex items-center gap-2">
-            <span class="font-mono text-[10px] text-text-secondary tracking-wider">OR</span>
+          <div class="flex items-center gap-3">
+            <div class="uk-divider flex-1"></div>
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.2em]">OR</span>
+            <div class="uk-divider flex-1"></div>
           </div>
 
-          <textarea id="ingest-text" rows="4" placeholder="Paste text content..."
-            class="w-full bg-surface border border-border rounded-lg px-4 py-3 text-sm font-sans placeholder:text-text-secondary/60 focus:outline-none focus:border-accent-2/40 transition-colors resize-y"></textarea>
+          <textarea id="ingest-text" rows="4" placeholder="Paste text content\u2026"
+            class="uk-search-input resize-y" style="font-size:0.9375rem;padding:0.85rem 1.15rem;border-radius:12px"></textarea>
 
           <input type="text" id="ingest-title" placeholder="Title (optional)"
-            class="w-full bg-surface border border-border rounded-lg px-4 py-3 text-sm font-sans placeholder:text-text-secondary/60 focus:outline-none focus:border-accent-2/40 transition-colors">
+            class="uk-search-input" style="font-size:0.9375rem;padding:0.85rem 1.15rem">
 
-          <div class="flex gap-3">
+          <div class="flex gap-3 pt-1">
             <button onclick="submitIngest()"
-              class="font-mono text-xs tracking-wider bg-text text-bg px-5 py-2.5 rounded hover:bg-text/90 transition-colors">
+              class="font-mono text-[10px] tracking-[0.2em] bg-text text-bg px-6 py-3 rounded-lg hover:opacity-90 transition-opacity">
               INGEST
             </button>
             <button onclick="window.location.hash='#/research/'; closeIngestModal()"
-              class="font-mono text-xs tracking-wider border border-border px-4 py-2 hover:bg-surface transition-colors">
+              class="uk-ingest-btn">
               RESEARCH TOPIC
             </button>
           </div>
         </div>
 
-        <div class="border-t border-border mt-6 pt-4">
-          <span class="font-mono text-[10px] text-text-secondary tracking-widest block mb-3">RECENT INGESTION</span>
+        <div class="mt-7 pt-5" style="border-top: 1px solid var(--border-subtle)">
+          <span class="font-mono text-[9px] text-text-muted tracking-[0.22em] block mb-3">RECENT INGESTION</span>
           <div id="ingestion-feed" class="space-y-2">
             ${state.ingestions.length === 0
-              ? '<p class="font-mono text-[10px] text-text-secondary/50">No recent ingestions</p>'
+              ? '<p class="font-mono text-[10px] text-text-muted" style="opacity:0.5">No recent ingestions</p>'
               : state.ingestions.map(ingestionItemHTML).join('')}
           </div>
         </div>
@@ -857,14 +924,14 @@
   };
 
   function ingestionItemHTML(item) {
-    const icon = item.status === 'done' ? '✓' : item.status === 'processing' ? '◌' : '✗';
+    const icon = item.status === 'done' ? '&#10003;' : item.status === 'processing' ? '&#9676;' : '&#10007;';
     const cls = item.status === 'done' ? 'text-accent-4' : item.status === 'processing' ? 'text-accent-1' : 'text-red-500';
-    const label = item.status === 'processing' ? 'compiling...' : (item.title || item.source);
-    return `<div class="flex items-center gap-2 font-mono text-[11px]">
+    const label = item.status === 'processing' ? 'compiling\u2026' : (item.title || item.source);
+    return `<div class="flex items-center gap-2 font-mono text-[10px]">
       <span class="${cls}">${icon}</span>
-      <span class="text-text-secondary truncate">${escapeHTML(truncate(item.source, 40))}</span>
-      <span class="text-text-secondary/50">→</span>
-      <span class="truncate">${escapeHTML(label)}</span>
+      <span class="text-text-muted truncate">${escapeHTML(truncate(item.source, 40))}</span>
+      <span class="text-text-muted" style="opacity:0.4">&rarr;</span>
+      <span class="truncate text-text-secondary">${escapeHTML(label)}</span>
     </div>`;
   }
 
@@ -932,7 +999,7 @@
   // ─── Toast ───────────────────────────────────────────────────────────
   function showToast(msg) {
     const toast = document.createElement('div');
-    toast.className = 'fixed bottom-14 left-1/2 -translate-x-1/2 bg-text text-bg font-mono text-xs tracking-wider px-5 py-2.5 rounded-lg shadow-lg z-[200] transition-opacity';
+    toast.className = 'uk-toast';
     toast.textContent = msg;
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2500);
