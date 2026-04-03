@@ -27,6 +27,7 @@
     ingestions: [],
   };
   let graphViewCleanup = null;
+  let articleViewCleanup = null;
   let activeRouteToken = 0;
 
   // ─── Routing ─────────────────────────────────────────────────────────
@@ -49,6 +50,10 @@
     if (graphViewCleanup) {
       graphViewCleanup();
       graphViewCleanup = null;
+    }
+    if (articleViewCleanup) {
+      articleViewCleanup();
+      articleViewCleanup = null;
     }
     const route = getRoute();
     switch (route.view) {
@@ -349,7 +354,7 @@
                     <button type="button" class="article-export-option" data-export-kind="pdf">PDF</button>
                   </div>
                 </div>
-                <button type="button" id="article-delete-btn" class="article-delete-btn" onclick="deleteArticle('${escapeAttr(slug)}')" title="Delete article">
+                <button type="button" id="article-delete-btn" class="article-delete-btn" title="Delete article">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
               </div>
@@ -383,7 +388,7 @@
         ${footerHTML()}
       `;
 
-      bindArticleExportMenu(slug);
+      articleViewCleanup = bindArticleExportMenu(slug);
       bindSearchInput('article-search');
     } catch (err) {
       app().innerHTML = `
@@ -409,36 +414,46 @@
     const shell = $('#article-export-shell');
     const button = $('#article-export-btn');
     const menu = $('#article-export-menu');
-    if (!shell || !button || !menu) return;
+    const deleteBtn = $('#article-delete-btn');
 
-    const closeMenu = () => menu.classList.add('hidden');
+    const closeMenu = () => { if (menu) menu.classList.add('hidden'); };
     const toggleMenu = (event) => {
       event.stopPropagation();
-      menu.classList.toggle('hidden');
+      if (menu) menu.classList.toggle('hidden');
     };
     const onDocumentClick = (event) => {
-      if (!shell.contains(event.target)) closeMenu();
+      if (shell && !shell.contains(event.target)) closeMenu();
     };
+    const onDeleteClick = () => window.deleteArticle(slug);
 
-    button.addEventListener('click', toggleMenu);
+    if (button) button.addEventListener('click', toggleMenu);
     document.addEventListener('click', onDocumentClick);
+    if (deleteBtn) deleteBtn.addEventListener('click', onDeleteClick);
 
-    $$('.article-export-option', menu).forEach(option => {
-      option.addEventListener('click', async () => {
-        closeMenu();
-        option.disabled = true;
-        try {
-          const filename = option.dataset.exportKind === 'snapshot'
-            ? await exportArticleSnapshot(slug)
-            : await exportArticleAsset(slug, option.dataset.exportKind);
-          showToast(`Exported as ${filename}`);
-        } catch (err) {
-          showToast(`Export failed: ${err.message}`);
-        } finally {
-          option.disabled = false;
-        }
+    if (menu) {
+      $$('.article-export-option', menu).forEach(option => {
+        option.addEventListener('click', async () => {
+          closeMenu();
+          option.disabled = true;
+          try {
+            const filename = option.dataset.exportKind === 'snapshot'
+              ? await exportArticleSnapshot(slug)
+              : await exportArticleAsset(slug, option.dataset.exportKind);
+            showToast(`Exported as ${filename}`);
+          } catch (err) {
+            showToast(`Export failed: ${err.message}`);
+          } finally {
+            option.disabled = false;
+          }
+        });
       });
-    });
+    }
+
+    // Return cleanup function to remove document-level listener on route change
+    return function cleanup() {
+      document.removeEventListener('click', onDocumentClick);
+      if (deleteBtn) deleteBtn.removeEventListener('click', onDeleteClick);
+    };
   }
 
   async function exportArticleAsset(slug, format) {

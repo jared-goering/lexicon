@@ -21,6 +21,9 @@
 * { box-sizing: border-box; }
 ::selection { background: rgba(46, 125, 201, 0.18); }
 
+/* ─── z-index hierarchy ─────────────────────────────────────── */
+/* ingest-modal: 100 | uk-toast: 200 | uk-confirm-overlay: 300 | grain-overlay: 9999 (pointer-events:none) */
+
 /* ─── Grain texture overlay ─────────────────────────────────── */
 .grain-overlay {
   position: fixed;
@@ -1019,9 +1022,15 @@ input[type="checkbox"].research-check {
     width: 100%;
   }
 
+  .article-delete-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .article-export-menu {
     left: 0;
     right: auto;
     width: 100%;
+  }
   }
 }
