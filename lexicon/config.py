@@ -13,30 +13,30 @@ class Settings:
 
     # LLM
     llm_model: str = field(
-        default_factory=lambda: os.getenv("UK_LLM_MODEL", "gemini/gemini-2.0-flash")
+        default_factory=lambda: os.getenv("LEXICON_LLM_MODEL", "gemini/gemini-2.0-flash")
     )
     llm_temperature: float = field(
-        default_factory=lambda: float(os.getenv("UK_LLM_TEMPERATURE", "0.3"))
+        default_factory=lambda: float(os.getenv("LEXICON_LLM_TEMPERATURE", "0.3"))
     )
 
-    # Ultramemory — lexicon uses its OWN database, separate from OpenClaw's.
-    # Set UK_ULTRAMEMORY_URL to point at an external server, or leave blank to use
-    # the embedded engine with a dedicated DB at UK_ULTRAMEMORY_DB_PATH.
+    # Ultramemory — lexicon uses its OWN database.
+    # Set LEXICON_ULTRAMEMORY_URL to point at an external server, or leave blank to use
+    # the embedded engine with a dedicated DB at LEXICON_ULTRAMEMORY_DB_PATH.
     ultramemory_url: str = field(
-        default_factory=lambda: os.getenv("UK_ULTRAMEMORY_URL", "")
+        default_factory=lambda: os.getenv("LEXICON_ULTRAMEMORY_URL", "")
     )
     ultramemory_db_path: Path = field(
         default_factory=lambda: Path(
-            os.getenv("UK_ULTRAMEMORY_DB_PATH", os.path.join(str(Path.home()), ".lexicon", "memory.db"))
+            os.getenv("LEXICON_ULTRAMEMORY_DB_PATH", os.path.join(str(Path.home()), ".lexicon", "memory.db"))
         )
     )
     ultramemory_collection: str = field(
-        default_factory=lambda: os.getenv("UK_ULTRAMEMORY_COLLECTION", "lexicon")
+        default_factory=lambda: os.getenv("LEXICON_ULTRAMEMORY_COLLECTION", "lexicon")
     )
 
     # Knowledge base output
     kb_dir: Path = field(
-        default_factory=lambda: Path(os.getenv("UK_KB_DIR", "./kb"))
+        default_factory=lambda: Path(os.getenv("LEXICON_KB_DIR", "./kb"))
     )
     articles_dir: Path = field(init=False)
     index_path: Path = field(init=False)
@@ -48,15 +48,19 @@ class Settings:
 
     # Compilation
     compile_frequency_minutes: int = field(
-        default_factory=lambda: int(os.getenv("UK_COMPILE_FREQUENCY", "60"))
+        default_factory=lambda: int(os.getenv("LEXICON_COMPILE_FREQUENCY", "60"))
     )
     max_chunks_per_article: int = field(
-        default_factory=lambda: int(os.getenv("UK_MAX_CHUNKS_PER_ARTICLE", "50"))
+        default_factory=lambda: int(os.getenv("LEXICON_MAX_CHUNKS_PER_ARTICLE", "50"))
     )
 
     # Server
-    host: str = field(default_factory=lambda: os.getenv("UK_HOST", "0.0.0.0"))
-    port: int = field(default_factory=lambda: int(os.getenv("UK_PORT", "8200")))
+    host: str = field(default_factory=lambda: os.getenv("LEXICON_HOST", "127.0.0.1"))
+    port: int = field(default_factory=lambda: int(os.getenv("LEXICON_PORT", "8899")))
+
+    # Optional API token — if set, destructive/expensive endpoints require
+    # Authorization: Bearer <token>.  Leave empty to disable auth (local dev).
+    api_token: str = field(default_factory=lambda: os.getenv("LEXICON_API_TOKEN", ""))
 
     def __post_init__(self) -> None:
         self.articles_dir = self.kb_dir / "articles"

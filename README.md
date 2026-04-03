@@ -77,7 +77,7 @@ export GEMINI_API_KEY="your-key"
 export EXA_API_KEY="your-key"
 
 # Optional: use a different model
-export UK_LLM_MODEL="anthropic/claude-sonnet-4-20250514"  # or "ollama/llama3" for local
+export LEXICON_LLM_MODEL="anthropic/claude-sonnet-4-20250514"  # or "ollama/llama3" for local
 ```
 
 ### Use
@@ -119,7 +119,7 @@ uk serve
 
 ```bash
 uk serve
-# Open http://localhost:8200
+# Open http://localhost:8899
 ```
 
 The web UI provides a dashboard, search, Q&A chat, and article browser. Full API docs at `/docs`.
@@ -143,15 +143,16 @@ All configuration is via environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `UK_LLM_MODEL` | `gemini/gemini-2.0-flash` | LiteLLM model string |
-| `UK_LLM_TEMPERATURE` | `0.3` | LLM temperature for article generation |
-| `UK_ULTRAMEMORY_URL` | empty | Optional Ultramemory server URL; leave unset to use the embedded engine |
-| `UK_ULTRAMEMORY_DB_PATH` | `~/.lexicon/memory.db` | Embedded Ultramemory database path |
-| `UK_KB_DIR` | `./kb` | Output directory for the wiki |
-| `UK_COMPILE_FREQUENCY` | `60` | Auto-compile interval in minutes |
+| `LEXICON_LLM_MODEL` | `gemini/gemini-2.0-flash` | LiteLLM model string |
+| `LEXICON_LLM_TEMPERATURE` | `0.3` | LLM temperature for article generation |
+| `LEXICON_ULTRAMEMORY_URL` | empty | Optional Ultramemory server URL; leave unset to use the embedded engine |
+| `LEXICON_ULTRAMEMORY_DB_PATH` | `~/.lexicon/memory.db` | Embedded Ultramemory database path |
+| `LEXICON_KB_DIR` | `./kb` | Output directory for the wiki |
+| `LEXICON_COMPILE_FREQUENCY` | `60` | Auto-compile interval in minutes |
 | `EXA_API_KEY` | — | Exa API key for web research |
-| `UK_HOST` | `0.0.0.0` | Server host |
-| `UK_PORT` | `8200` | Server port |
+| `LEXICON_HOST` | `127.0.0.1` | Server host |
+| `LEXICON_PORT` | `8899` | Server port |
+| `LEXICON_API_TOKEN` | empty | Optional Bearer token for write endpoints; leave unset to disable auth |
 
 ## CLI Reference
 
@@ -187,7 +188,7 @@ lexicon works great with local models via Ollama:
 
 ```bash
 pip install lexicon[local]
-export UK_LLM_MODEL="ollama/llama3"
+export LEXICON_LLM_MODEL="ollama/llama3"
 uk serve
 ```
 

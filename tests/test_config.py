@@ -7,7 +7,7 @@ from pathlib import Path
 from lexicon.config import Settings
 
 
-def test_default_ultramemory_db_path_is_isolated_from_openclaw():
+def test_default_ultramemory_db_path_is_under_lexicon_dir():
     settings = Settings()
     expected = Path.home() / ".lexicon" / "memory.db"
     assert settings.ultramemory_db_path == expected

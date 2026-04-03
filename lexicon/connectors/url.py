@@ -8,6 +8,8 @@ from urllib.parse import urlparse
 
 import httpx
 
+_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+
 # Matches twitter.com and x.com tweet URLs
 _TWEET_RE = _re.compile(
     r"^https?://(?:(?:www\.)?(?:twitter|x)\.com)/(\w+)/status/(\d+)"
@@ -273,7 +275,7 @@ class URLConnector:
         async with httpx.AsyncClient(
             timeout=30.0,
             follow_redirects=True,
-            headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"},
+            headers={"User-Agent": _USER_AGENT},
         ) as client:
             results = []
             for url in urls:
@@ -296,7 +298,7 @@ class URLConnector:
         async with httpx.AsyncClient(
             timeout=30.0,
             follow_redirects=True,
-            headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"},
+            headers={"User-Agent": _USER_AGENT},
         ) as client:
             response = await client.get(url)
             response.raise_for_status()
