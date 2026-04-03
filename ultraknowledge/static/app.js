@@ -9,6 +9,8 @@
 
   const ACCENTS = ['accent-1', 'accent-2', 'accent-3', 'accent-4'];
   const ACCENT_HEX = { 'accent-1': '#E8913A', 'accent-2': '#3A8FE8', 'accent-3': '#6B3AE8', 'accent-4': '#3AE89B' };
+  const GRAPH_BG = '#F5F3EF';
+  const GRAPH_BORDER = '#E5E2DC';
 
   // ─── State ───────────────────────────────────────────────────────────
   let state = {
@@ -16,6 +18,7 @@
     stats: { article_count: 0, system_state: 'READY' },
     ingestions: [],
   };
+  let graphViewCleanup = null;
 
   // ─── Routing ─────────────────────────────────────────────────────────
   function navigate(hash) {
@@ -25,6 +28,7 @@
   function getRoute() {
     const h = window.location.hash.slice(1) || '/';
     if (h === '/' || h === '') return { view: 'home' };
+    if (h === '/graph') return { view: 'graph' };
     if (h.startsWith('/article/')) return { view: 'article', slug: decodeURIComponent(h.slice(9)) };
     if (h.startsWith('/ask/')) return { view: 'ask', question: decodeURIComponent(h.slice(5)) };
     if (h.startsWith('/research/')) return { view: 'research', query: decodeURIComponent(h.slice(10)) };
@@ -32,9 +36,14 @@
   }
 
   async function router() {
+    if (graphViewCleanup) {
+      graphViewCleanup();
+      graphViewCleanup = null;
+    }
     const route = getRoute();
     switch (route.view) {
       case 'home': await renderHome(); break;
+      case 'graph': await renderGraph(); break;
       case 'article': await renderArticle(route.slug); break;
       case 'ask': await renderAsk(route.question); break;
       case 'research': await renderResearch(route.query); break;
@@ -69,6 +78,10 @@
       const data = await api('GET', '/articles');
       state.articles = (data.articles || []).slice(0, 5);
     }
+  }
+
+  async function loadGraph() {
+    return api('GET', '/api/graph');
   }
 
   // ─── Markdown rendering ──────────────────────────────────────────────
@@ -166,7 +179,23 @@
           <h1 class="font-mono text-2xl sm:text-3xl tracking-[0.3em] font-medium mb-2">ULTRAKNOWLEDGE</h1>
           <p class="font-mono text-xs text-text-secondary tracking-widest">LLM-COMPILED KNOWLEDGE BASE</p>
         </div>
-        ${searchBarHTML('Ask your knowledge...', 'home-search')}
+        <div class="w-full max-w-4xl flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div class="flex-1">
+            ${searchBarHTML('Ask your knowledge...', 'home-search')}
+          </div>
+          <button onclick="window.location.hash='#/graph'" class="graph-launch-btn group">
+            <span class="graph-launch-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M6 7.5 12 12m0 0 6-6m-6 6 5.5 5M12 12 6.5 18"></path>
+                <circle cx="6" cy="7.5" r="2.25" fill="currentColor" stroke="none"></circle>
+                <circle cx="18" cy="6" r="2.25" fill="currentColor" stroke="none"></circle>
+                <circle cx="17.5" cy="17" r="2.25" fill="currentColor" stroke="none"></circle>
+                <circle cx="6.5" cy="18" r="2.25" fill="currentColor" stroke="none"></circle>
+              </svg>
+            </span>
+            <span class="font-mono text-xs tracking-[0.24em]">GRAPH</span>
+          </button>
+        </div>
         ${state.articles.length > 0 ? `
           <div class="grid ${gridCols} gap-4 mt-12 w-full max-w-3xl">
             ${cards}
@@ -448,6 +477,169 @@
     }
   }
 
+  // ─── Graph View ──────────────────────────────────────────────────────
+  async function renderGraph() {
+    app().innerHTML = `
+      <main class="graph-shell">
+        <header class="graph-topbar">
+          <div class="flex items-center gap-4">
+            <button onclick="window.location.hash=''" class="font-mono text-xs text-text-secondary hover:text-text tracking-[0.24em] transition-colors">← BACK</button>
+            <div>
+              <h1 class="font-mono text-sm sm:text-base tracking-[0.28em]">KNOWLEDGE GRAPH</h1>
+              <p class="font-mono text-[10px] text-text-secondary tracking-[0.24em] mt-1">MAPPING ARTICLE RELATIONSHIPS</p>
+            </div>
+          </div>
+          <div class="graph-stats">
+            <span class="graph-stat">LOADING NODES</span>
+            <span class="graph-stat">LOADING EDGES</span>
+          </div>
+        </header>
+        <section class="graph-stage">
+          <div id="graph-canvas" class="graph-canvas"></div>
+          <div id="graph-tooltip" class="graph-tooltip hidden"></div>
+          <div class="graph-controls">
+            <div>
+              <label for="graph-charge" class="graph-control-label">DENSITY / CHARGE</label>
+              <input id="graph-charge" class="graph-slider" type="range" min="30" max="260" value="120">
+            </div>
+            <div>
+              <label for="graph-link-distance" class="graph-control-label">LINK DISTANCE</label>
+              <input id="graph-link-distance" class="graph-slider" type="range" min="40" max="220" value="110">
+            </div>
+          </div>
+        </section>
+      </main>
+    `;
+
+    if (!window.ForceGraph) {
+      $('#graph-canvas').innerHTML = '<div class="graph-empty-state">ForceGraph failed to load.</div>';
+      return;
+    }
+
+    try {
+      const data = await loadGraph();
+      const nodes = (data.nodes || []).map(node => ({
+        ...node,
+        __radius: clamp(4, scaleSourceCount(node.source_count, data.nodes || []), 20),
+        __linkCount: 0,
+      }));
+      const nodeById = Object.fromEntries(nodes.map(node => [node.id, node]));
+      const edges = (data.edges || []).filter(edge => nodeById[edge.source] && nodeById[edge.target]);
+      const clusters = data.clusters || [];
+      const clusterColors = Object.fromEntries(clusters.map(cluster => [cluster.id, cluster.color]));
+
+      edges.forEach(edge => {
+        nodeById[edge.source].__linkCount += 1;
+        nodeById[edge.target].__linkCount += 1;
+      });
+
+      const stats = $$('.graph-stat');
+      if (stats[0]) stats[0].textContent = `${nodes.length} NODES`;
+      if (stats[1]) stats[1].textContent = `${edges.length} EDGES`;
+
+      if (nodes.length === 0) {
+        $('#graph-canvas').innerHTML = '<div class="graph-empty-state">No articles compiled yet.</div>';
+        return;
+      }
+
+      const container = $('#graph-canvas');
+      const tooltip = $('#graph-tooltip');
+      const chargeInput = $('#graph-charge');
+      const linkDistanceInput = $('#graph-link-distance');
+      let hoveredNode = null;
+      let pointer = { x: 0, y: 0 };
+
+      const fg = window.ForceGraph()(container)
+        .backgroundColor(GRAPH_BG)
+        .graphData({ nodes, links: edges })
+        .nodeId('id')
+        .linkSource('source')
+        .linkTarget('target')
+        .linkColor(() => GRAPH_BORDER)
+        .linkWidth(0.8)
+        .linkDirectionalParticles(0)
+        .nodeCanvasObjectMode(() => 'replace')
+        .nodeCanvasObject((node, ctx, globalScale) => {
+          const radius = node.__radius || 6;
+          const color = clusterColors[node.cluster] || ACCENT_HEX['accent-2'];
+
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+          ctx.fillStyle = color;
+          ctx.shadowColor = `${color}33`;
+          ctx.shadowBlur = hoveredNode && hoveredNode.id === node.id ? 18 : 10;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          const shouldLabel = globalScale >= 1.55 || (hoveredNode && hoveredNode.id === node.id);
+          if (!shouldLabel) return;
+
+          const fontSize = Math.max(10 / globalScale, 3.5);
+          const label = node.title;
+          ctx.font = `500 ${fontSize}px JetBrains Mono`;
+          const textWidth = ctx.measureText(label).width;
+          const padX = 6 / globalScale;
+          const padY = 4 / globalScale;
+          const boxX = node.x + radius + 6 / globalScale;
+          const boxY = node.y - fontSize;
+
+          ctx.fillStyle = 'rgba(245, 243, 239, 0.92)';
+          ctx.fillRect(boxX - padX, boxY - padY, textWidth + padX * 2, fontSize + padY * 2);
+          ctx.fillStyle = '#1A1A1A';
+          ctx.fillText(label, boxX, node.y + fontSize * 0.15);
+        })
+        .nodePointerAreaPaint((node, color, ctx) => {
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, (node.__radius || 6) + 4, 0, 2 * Math.PI, false);
+          ctx.fill();
+        })
+        .onNodeClick(node => navigate(`/article/${encodeURIComponent(node.id)}`))
+        .onNodeHover(node => {
+          hoveredNode = node || null;
+          updateTooltip(node, tooltip, pointer);
+          container.style.cursor = node ? 'pointer' : 'grab';
+        });
+
+      fg.d3Force('charge').strength(-Number(chargeInput.value));
+      fg.d3Force('link').distance(Number(linkDistanceInput.value));
+      fg.cooldownTicks(120);
+      fg.onEngineStop(() => fg.zoomToFit(500, 60));
+
+      const onPointerMove = (event) => {
+        const rect = container.getBoundingClientRect();
+        pointer = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        if (hoveredNode) updateTooltip(hoveredNode, tooltip, pointer);
+      };
+      container.addEventListener('pointermove', onPointerMove);
+
+      const onResize = () => {
+        fg.width(container.clientWidth);
+        fg.height(container.clientHeight);
+      };
+      window.addEventListener('resize', onResize);
+      onResize();
+
+      chargeInput.addEventListener('input', () => {
+        fg.d3Force('charge').strength(-Number(chargeInput.value));
+        fg.d3ReheatSimulation();
+      });
+      linkDistanceInput.addEventListener('input', () => {
+        fg.d3Force('link').distance(Number(linkDistanceInput.value));
+        fg.d3ReheatSimulation();
+      });
+
+      graphViewCleanup = function () {
+        window.removeEventListener('resize', onResize);
+        container.removeEventListener('pointermove', onPointerMove);
+        tooltip.classList.add('hidden');
+        fg.pauseAnimation();
+      };
+    } catch (err) {
+      $('#graph-canvas').innerHTML = `<div class="graph-empty-state">Unable to load graph.<br><span class="font-mono text-[11px] text-text-secondary">${escapeHTML(err.message)}</span></div>`;
+    }
+  }
+
   // ─── Ingest Modal ────────────────────────────────────────────────────
   window.openIngestModal = function () {
     // Remove existing modal if any
@@ -641,6 +833,35 @@
 
   function extractDomain(url) {
     try { return new URL(url).hostname; } catch { return url || ''; }
+  }
+
+  function scaleSourceCount(value, nodes) {
+    const counts = nodes.map(node => node.source_count || 0);
+    const min = Math.min.apply(null, counts);
+    const max = Math.max.apply(null, counts);
+    if (min === max) return 10;
+    const ratio = ((value || 0) - min) / (max - min);
+    return 4 + ratio * 16;
+  }
+
+  function clamp(min, value, max) {
+    return Math.max(min, Math.min(value, max));
+  }
+
+  function updateTooltip(node, tooltip, pointer) {
+    if (!tooltip) return;
+    if (!node) {
+      tooltip.classList.add('hidden');
+      return;
+    }
+
+    tooltip.innerHTML = DOMPurify.sanitize(`
+      <div class="graph-tooltip-title">${escapeHTML(node.title)}</div>
+      <div class="graph-tooltip-meta">${node.source_count || 0} sources</div>
+      <div class="graph-tooltip-meta">${node.__linkCount || 0} links</div>
+    `);
+    tooltip.style.transform = `translate(${pointer.x + 18}px, ${pointer.y + 18}px)`;
+    tooltip.classList.remove('hidden');
   }
 
   // ─── Init ────────────────────────────────────────────────────────────

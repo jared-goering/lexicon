@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -114,6 +115,48 @@ async def topics() -> dict[str, Any]:
     # Most recently modified first
     items.sort(key=lambda x: x["modified"], reverse=True)
     return {"topics": items[:5]}
+
+
+@app.get("/api/graph")
+async def graph() -> dict[str, Any]:
+    """Return article graph data for the knowledge-graph UI."""
+    articles = linker.scan_articles()
+    if not articles:
+        return {"nodes": [], "edges": [], "clusters": []}
+
+    cluster_palette = ["#E8913A", "#3A8FE8", "#6B3AE8", "#3AE89B"]
+    cluster_labels = _build_graph_cluster_labels(articles)
+    slug_by_title = {info.title.casefold(): info.slug for info in articles.values()}
+
+    nodes = []
+    edges = []
+    seen_edges: set[tuple[str, str]] = set()
+
+    for info in sorted(articles.values(), key=lambda item: item.title.casefold()):
+        cluster_id = _cluster_id_for_article(info, cluster_labels)
+        nodes.append({
+            "id": info.slug,
+            "title": info.title,
+            "source_count": info.source_count,
+            "headings": info.headings,
+            "cluster": cluster_id,
+        })
+
+        for link_title in info.outbound_links:
+            target_slug = slug_by_title.get(link_title.casefold())
+            if not target_slug or target_slug == info.slug:
+                continue
+            edge = (info.slug, target_slug)
+            if edge in seen_edges:
+                continue
+            seen_edges.add(edge)
+            edges.append({"source": info.slug, "target": target_slug})
+
+    clusters = [
+        {"id": idx, "color": color, "label": label}
+        for idx, (color, label) in enumerate(zip(cluster_palette, cluster_labels, strict=False))
+    ]
+    return {"nodes": nodes, "edges": edges, "clusters": clusters}
 
 
 @app.post("/ingest")
@@ -297,3 +340,37 @@ async def export_article(req: ExportRequest) -> dict[str, Any]:
         }
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Article not found: {req.topic}")
+
+
+def _build_graph_cluster_labels(articles: dict[str, Any]) -> list[str]:
+    """Choose four stable cluster labels from article headings or title ranges."""
+    heading_counts = Counter(
+        info.headings[0].strip()
+        for info in articles.values()
+        if info.headings and info.headings[0].strip()
+    )
+    if len(heading_counts) >= 4:
+        top_headings = sorted(heading_counts.items(), key=lambda item: (-item[1], item[0].casefold()))
+        return [heading for heading, _count in top_headings[:4]]
+    return ["A-F", "G-L", "M-R", "S-Z"]
+
+
+def _cluster_id_for_article(info: Any, cluster_labels: list[str]) -> int:
+    """Map an article into one of the four graph clusters."""
+    if cluster_labels == ["A-F", "G-L", "M-R", "S-Z"]:
+        first_char = (info.title[:1] or "#").upper()
+        if first_char <= "F":
+            return 0
+        if first_char <= "L":
+            return 1
+        if first_char <= "R":
+            return 2
+        return 3
+
+    heading = info.headings[0].strip() if info.headings else ""
+    if heading in cluster_labels:
+        return cluster_labels.index(heading)
+
+    # Preserve four clusters even when an article falls outside the top heading groups.
+    first_char = (info.title[:1] or "#").upper()
+    return min((ord(first_char) - ord("A")) // 6 if "A" <= first_char <= "Z" else 3, 3)

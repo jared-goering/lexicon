@@ -124,11 +124,200 @@
 /* ─── Topic card hover accent colors ─────────────────────────── */
 .topic-card { transition: border-color 0.15s ease; }
 
+.graph-launch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 3.75rem;
+  padding: 0 1.25rem;
+  border: 1px solid #E5E2DC;
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(135deg, rgba(232, 145, 58, 0.12), rgba(58, 143, 232, 0.08)),
+    #FFFCF8;
+  color: #1A1A1A;
+  box-shadow: 0 12px 36px rgba(26, 26, 26, 0.06);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.graph-launch-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(232, 145, 58, 0.45);
+  box-shadow: 0 16px 42px rgba(26, 26, 26, 0.08);
+}
+
+.graph-launch-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #E8913A;
+}
+
+.graph-launch-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
 /* ─── Checkbox accent override ───────────────────────────────── */
 input[type="checkbox"].research-check {
   width: 16px;
   height: 16px;
   cursor: pointer;
+}
+
+/* ─── Graph view ──────────────────────────────────────────────── */
+.graph-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(232, 145, 58, 0.10), transparent 28%),
+    radial-gradient(circle at top right, rgba(58, 143, 232, 0.08), transparent 24%),
+    #F5F3EF;
+}
+
+.graph-topbar {
+  height: 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1.5rem;
+  border-bottom: 1px solid #E5E2DC;
+  background: rgba(245, 243, 239, 0.88);
+  backdrop-filter: blur(14px);
+}
+
+.graph-stage {
+  position: relative;
+  height: calc(100vh - 4.5rem);
+  overflow: hidden;
+}
+
+.graph-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.graph-canvas canvas {
+  display: block;
+}
+
+.graph-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.graph-stat {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #6B6B6B;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #E5E2DC;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.graph-controls {
+  position: absolute;
+  left: 1.5rem;
+  bottom: 1.5rem;
+  width: min(320px, calc(100vw - 2rem));
+  display: grid;
+  gap: 1rem;
+  padding: 1rem 1rem 0.875rem;
+  border: 1px solid #E5E2DC;
+  border-radius: 1rem;
+  background: rgba(255, 252, 248, 0.92);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 60px rgba(26, 26, 26, 0.08);
+}
+
+.graph-control-label {
+  display: block;
+  margin-bottom: 0.55rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: #6B6B6B;
+}
+
+.graph-slider {
+  width: 100%;
+  height: 6px;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(232, 145, 58, 0.85), rgba(229, 226, 220, 0.95));
+  outline: none;
+}
+
+.graph-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #FFFFFF;
+  border-radius: 999px;
+  background: #E8913A;
+  box-shadow: 0 4px 10px rgba(232, 145, 58, 0.35);
+  cursor: pointer;
+}
+
+.graph-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #FFFFFF;
+  border-radius: 999px;
+  background: #E8913A;
+  box-shadow: 0 4px 10px rgba(232, 145, 58, 0.35);
+  cursor: pointer;
+}
+
+.graph-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  min-width: 180px;
+  max-width: 240px;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid rgba(229, 226, 220, 0.95);
+  border-radius: 0.875rem;
+  background: rgba(255, 252, 248, 0.96);
+  box-shadow: 0 18px 40px rgba(26, 26, 26, 0.12);
+  pointer-events: none;
+}
+
+.graph-tooltip.hidden {
+  display: none;
+}
+
+.graph-tooltip-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #1A1A1A;
+  margin-bottom: 0.4rem;
+}
+
+.graph-tooltip-meta {
+  font-size: 12px;
+  color: #6B6B6B;
+}
+
+.graph-empty-state {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #6B6B6B;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.12em;
 }
 
 /* ─── Responsive: mobile ingest fullscreen ───────────────────── */
@@ -139,6 +328,24 @@ input[type="checkbox"].research-check {
     border-radius: 0;
     max-height: 100vh;
     margin: 0;
+  }
+
+  .graph-topbar {
+    height: auto;
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .graph-stage {
+    height: calc(100vh - 7.5rem);
+  }
+
+  .graph-controls {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
+    width: auto;
   }
 }
 
