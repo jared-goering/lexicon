@@ -32,7 +32,8 @@ class UltramemoryClient:
 
             db_path = str(self.settings.ultramemory_db_path)
             os.makedirs(os.path.dirname(db_path), exist_ok=True)
-            self._engine = MemoryEngine(db_path=db_path)
+            model = os.getenv("UK_LLM_MODEL", None)
+            self._engine = MemoryEngine(db_path=db_path, model_name=model)
         return self._engine
 
     def _make_session_key(self, source_type: str) -> str:

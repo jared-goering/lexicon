@@ -52,7 +52,7 @@ class ExaConnector:
             query=query,
             num_results=num_results,
             text=True,
-            use_autoprompt=True,
+
         )
 
         results = []
