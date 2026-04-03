@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from typing import Any
@@ -78,7 +79,13 @@ class UltramemoryClient:
                 return self._normalize_ingest_result(resp.json())
 
         engine = self._get_engine()
-        memories = engine.ingest(text=text, session_key=sk, agent_id=agent_id, document_date=document_date)
+        memories = await asyncio.to_thread(
+            engine.ingest,
+            text=text,
+            session_key=sk,
+            agent_id=agent_id,
+            document_date=document_date,
+        )
         return self._normalize_ingest_result({"memories": memories})
 
     async def ingest_raw(
@@ -105,7 +112,13 @@ class UltramemoryClient:
 
         # Embedded: use ingest (no raw-only mode in engine, ingest does extraction)
         engine = self._get_engine()
-        memories = engine.ingest(text=text, session_key=sk, agent_id=agent_id, document_date=document_date)
+        memories = await asyncio.to_thread(
+            engine.ingest,
+            text=text,
+            session_key=sk,
+            agent_id=agent_id,
+            document_date=document_date,
+        )
         return self._normalize_ingest_result({"memories": memories})
 
     # ── Search ───────────────────────────────────────────────────────────
@@ -128,7 +141,7 @@ class UltramemoryClient:
                 return data.get("results", [])
 
         engine = self._get_engine()
-        return engine.search(query=query, top_k=top_k)
+        return await asyncio.to_thread(engine.search, query=query, top_k=top_k)
 
     # ── Stats / Health / Entities ────────────────────────────────────────
 
@@ -143,7 +156,7 @@ class UltramemoryClient:
                 return resp.json()
 
         engine = self._get_engine()
-        return engine.get_stats()
+        return await asyncio.to_thread(engine.get_stats)
 
     async def health(self) -> dict[str, Any]:
         """Health check."""
@@ -156,7 +169,7 @@ class UltramemoryClient:
                 return resp.json()
 
         engine = self._get_engine()
-        stats = engine.get_stats()
+        stats = await asyncio.to_thread(engine.get_stats)
         return {"status": "ok", "mode": "embedded", "total_memories": stats.get("total_memories", 0)}
 
     async def entities(self, min_mentions: int = 1) -> list[dict[str, Any]]:
@@ -174,4 +187,4 @@ class UltramemoryClient:
                 return data.get("entities", [])
 
         engine = self._get_engine()
-        return engine.list_entities(min_mentions=min_mentions)
+        return await asyncio.to_thread(engine.list_entities, min_mentions=min_mentions)

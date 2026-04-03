@@ -29,6 +29,7 @@ class ResearchRun:
     memories_created: int = 0
     article_paths: list[Path] = field(default_factory=list)
     links_added: int = 0
+    failed_results: list[str] = field(default_factory=list)
 
 
 def build_research_document(result: SearchResult) -> str:
@@ -94,12 +95,17 @@ class ResearchAgent:
         compile_chunks: list[dict[str, str]] = []
         for result in results:
             document = build_research_document(result)
-            ingest_result = await self.client.ingest(
-                text=document,
-                session_key=session_key,
-                agent_id="uk-research",
-                document_date=result.published_date,
-            )
+            try:
+                ingest_result = await self.client.ingest(
+                    text=document,
+                    session_key=session_key,
+                    agent_id="uk-research",
+                    document_date=result.published_date,
+                )
+            except Exception:
+                research_run.failed_results.append(result.url)
+                continue
+
             research_run.memories_created += ingest_result.get("memories_created", 0)
             compile_chunks.append(
                 {

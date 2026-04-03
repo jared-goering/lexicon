@@ -57,15 +57,21 @@ class ExaConnector:
 
         results = []
         for item in response.results:
-            results.append(
-                SearchResult(
-                    title=item.title or "Untitled",
-                    url=item.url,
-                    text=item.text or "",
-                    score=getattr(item, "score", 0.0),
-                    published_date=getattr(item, "published_date", None),
+            try:
+                text = (item.text or "").strip()
+                if not text:
+                    continue
+                results.append(
+                    SearchResult(
+                        title=item.title or "Untitled",
+                        url=item.url,
+                        text=text,
+                        score=getattr(item, "score", 0.0),
+                        published_date=getattr(item, "published_date", None),
+                    )
                 )
-            )
+            except Exception:
+                continue
         return results
 
     async def auto_enrich(self, topic: str, existing_sources: list[str] | None = None) -> list[SearchResult]:

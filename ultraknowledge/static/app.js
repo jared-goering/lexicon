@@ -87,7 +87,7 @@
         return hljs.highlightAuto(code).value;
       },
     });
-    return marked.parse(withLinks);
+    return DOMPurify.sanitize(marked.parse(withLinks));
   }
 
   // ─── Shared Components ───────────────────────────────────────────────

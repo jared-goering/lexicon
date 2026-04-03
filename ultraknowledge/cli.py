@@ -333,7 +333,7 @@ def serve(host: str | None, port: int | None):
         "ultraknowledge.server:app",
         host=host or settings.host,
         port=port or settings.port,
-        reload=True,
+        reload=False,
     )
 
 

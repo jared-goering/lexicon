@@ -111,7 +111,7 @@ class QAAgent:
         """Answer from KB, auto-researching when nothing relevant exists yet."""
         response = await self.ask(question)
 
-        if not response.citations:
+        if response.needs_research or not response.citations:
             await self.research_agent.research(question, num_results=5, compile=True)
             response = await self.ask(question)
 

@@ -23,7 +23,8 @@ echo "  Listen: $UK_HOST:$UK_PORT"
 echo "  Exa:    $([ -n "$EXA_API_KEY" ] && echo 'configured' || echo 'MISSING')"
 echo "  OpenAI: $([ -n "$OPENAI_API_KEY" ] && echo 'configured' || echo 'MISSING')"
 
+# Embedded SQLite is single-writer; keep one worker to avoid DB lock races.
 exec uvicorn ultraknowledge.server:app \
   --host "$UK_HOST" \
   --port "$UK_PORT" \
-  --workers 2
+  --workers 1

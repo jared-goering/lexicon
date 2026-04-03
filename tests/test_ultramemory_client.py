@@ -105,6 +105,25 @@ class TestSearch:
 
         assert results == []
 
+    def test_embedded_search_runs_in_thread(self):
+        settings = Settings()
+        settings.ultramemory_url = ""
+        client = UltramemoryClient(settings)
+
+        with patch.object(client, "_get_engine") as mock_get_engine, patch(
+            "ultraknowledge.ultramemory_client.asyncio.to_thread",
+            new_callable=AsyncMock,
+            return_value=[{"content": "result"}],
+        ) as mock_to_thread:
+            results = asyncio.run(client.search("test query", top_k=5))
+
+        assert results == [{"content": "result"}]
+        mock_to_thread.assert_awaited_once_with(
+            mock_get_engine.return_value.search,
+            query="test query",
+            top_k=5,
+        )
+
 
 class TestStats:
     def test_stats(self, client: UltramemoryClient):
@@ -118,6 +137,21 @@ class TestStats:
             stats = asyncio.run(client.stats())
 
         assert stats["total"] == 42
+
+    def test_embedded_stats_runs_in_thread(self):
+        settings = Settings()
+        settings.ultramemory_url = ""
+        client = UltramemoryClient(settings)
+
+        with patch.object(client, "_get_engine") as mock_get_engine, patch(
+            "ultraknowledge.ultramemory_client.asyncio.to_thread",
+            new_callable=AsyncMock,
+            return_value={"total_memories": 42},
+        ) as mock_to_thread:
+            stats = asyncio.run(client.stats())
+
+        assert stats["total_memories"] == 42
+        mock_to_thread.assert_awaited_once_with(mock_get_engine.return_value.get_stats)
 
 
 class TestHealth:
@@ -147,3 +181,21 @@ class TestEntities:
 
         assert len(entities) == 1
         assert entities[0]["entity_name"] == "Python"
+
+    def test_embedded_entities_runs_in_thread(self):
+        settings = Settings()
+        settings.ultramemory_url = ""
+        client = UltramemoryClient(settings)
+
+        with patch.object(client, "_get_engine") as mock_get_engine, patch(
+            "ultraknowledge.ultramemory_client.asyncio.to_thread",
+            new_callable=AsyncMock,
+            return_value=[{"entity_name": "Python"}],
+        ) as mock_to_thread:
+            entities = asyncio.run(client.entities(min_mentions=2))
+
+        assert entities == [{"entity_name": "Python"}]
+        mock_to_thread.assert_awaited_once_with(
+            mock_get_engine.return_value.list_entities,
+            min_mentions=2,
+        )

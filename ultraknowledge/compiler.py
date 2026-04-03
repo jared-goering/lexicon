@@ -171,7 +171,11 @@ class WikiCompiler:
             ],
             temperature=self.settings.llm_temperature,
         )
-        path.write_text(response.choices[0].message.content, encoding="utf-8")
+        title_match = re.search(r"^title:\s*(.+)$", existing, re.MULTILINE)
+        topic = title_match.group(1).strip() if title_match else path.stem.replace("-", " ").title()
+        header = self._build_header(topic, new_chunks)
+        full_content = f"{header}\n\n{response.choices[0].message.content}"
+        path.write_text(full_content, encoding="utf-8")
         return path
 
     def _format_chunks(self, chunks: list[dict[str, Any]]) -> str:

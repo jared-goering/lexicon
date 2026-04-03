@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import asyncio
 import pytest
 
 from ultraknowledge.compiler import WikiCompiler
@@ -97,3 +98,27 @@ class TestExtractManualSections:
         result = compiler._extract_manual_sections(content)
         assert "Section 1" in result
         assert "Section 2" in result
+
+
+class TestUpdateArticle:
+    def test_update_article_preserves_frontmatter_header(self, compiler: WikiCompiler, tmp_settings: Settings):
+        article_path = tmp_settings.articles_dir / "test-topic.md"
+        existing = "---\ntitle: Test Topic\n---\n\n# Existing"
+        chunks = [{"text": "New facts", "source": "https://example.com"}]
+
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content="# Updated"))]
+
+        import litellm
+
+        original_acompletion = litellm.acompletion
+        litellm.acompletion = AsyncMock(return_value=mock_response)
+        try:
+            asyncio.run(compiler._update_article(article_path, existing, chunks))
+        finally:
+            litellm.acompletion = original_acompletion
+
+        written = article_path.read_text(encoding="utf-8")
+        assert written.startswith("---\n")
+        assert "title: Test Topic" in written
+        assert "# Updated" in written

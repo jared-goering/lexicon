@@ -132,3 +132,39 @@ def test_research_agent_can_skip_compile(tmp_settings: Settings):
     assert run.article_paths == []
     compiler.compile_topic.assert_not_called()
     linker.generate_backlinks.assert_not_called()
+
+
+def test_research_agent_continues_after_ingest_failure(tmp_settings: Settings):
+    client = MagicMock(spec=UltramemoryClient)
+    client._make_session_key.return_value = "uk-research-123"
+    client.ingest = AsyncMock(side_effect=[RuntimeError("boom"), {"memories_created": 2}])
+
+    connector = MagicMock()
+    connector.research = AsyncMock(
+        return_value=[
+            SearchResult(title="Alpha", url="https://example.com/a", text="Alpha facts", score=0.8),
+            SearchResult(title="Beta", url="https://example.com/b", text="Beta facts", score=0.7),
+        ]
+    )
+
+    compiler = MagicMock()
+    compiler.compile_topic = AsyncMock(return_value=tmp_settings.articles_dir / "topic.md")
+
+    linker = MagicMock()
+    linker.generate_backlinks.return_value.links_added = 1
+
+    agent = ResearchAgent(
+        tmp_settings,
+        client=client,
+        connector=connector,
+        compiler=compiler,
+        linker=linker,
+    )
+
+    run = asyncio.run(agent.research("test topic", num_results=2, compile=True))
+
+    assert run.memories_created == 2
+    assert run.failed_results == ["https://example.com/a"]
+    compile_chunks = compiler.compile_topic.await_args.args[1]
+    assert len(compile_chunks) == 1
+    assert compile_chunks[0]["source"] == "https://example.com/b"

@@ -101,3 +101,25 @@ class TestAsk:
         """When the KB has no data, the agent should indicate it needs research."""
         response = asyncio.run(agent.ask("What is quantum computing?"))
         assert response.needs_research or "don't have" in response.answer.lower()
+
+
+class TestAnswerOrResearch:
+    def test_research_runs_when_low_confidence_even_with_citations(self, agent: QAAgent):
+        agent.ask = AsyncMock(
+            side_effect=[
+                QAResponse(
+                    answer="Partial answer",
+                    citations=[Citation(article_title="Guide", article_path="guide.md")],
+                    confidence=0.1,
+                    needs_research=True,
+                ),
+                QAResponse(answer="Improved answer", confidence=0.8),
+            ]
+        )
+        agent.research_agent.research = AsyncMock()
+        agent._suggest_research = AsyncMock(return_value=[])
+
+        response = asyncio.run(agent.answer_or_research("test question"))
+
+        assert response.answer == "Improved answer"
+        agent.research_agent.research.assert_awaited_once_with("test question", num_results=5, compile=True)
