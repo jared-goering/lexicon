@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 import glob as globmod
 import logging
 import mimetypes
+import os
 from pathlib import Path
 import secrets
 import tempfile
@@ -31,6 +32,20 @@ from lexicon.qa import QAAgent
 from lexicon.research import ResearchAgent
 from lexicon.ultramemory_client import UltramemoryClient
 from lexicon.utils import safe_slug
+
+def configure_logging() -> None:
+    """Set up structured logging for the lexicon package."""
+    level_name = os.getenv("LEXICON_LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    logging.basicConfig(
+        format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        level=level,
+        force=True,
+    )
+
+
+configure_logging()
 
 logger = logging.getLogger("lexicon.server")
 

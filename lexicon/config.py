@@ -58,6 +58,11 @@ class Settings:
     host: str = field(default_factory=lambda: os.getenv("LEXICON_HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: int(os.getenv("LEXICON_PORT", "8899")))
 
+    # Logging
+    log_level: str = field(
+        default_factory=lambda: os.getenv("LEXICON_LOG_LEVEL", "INFO")
+    )
+
     # Optional API token — if set, destructive/expensive endpoints require
     # Authorization: Bearer <token>.  Leave empty to disable auth (local dev).
     api_token: str = field(default_factory=lambda: os.getenv("LEXICON_API_TOKEN", ""))
