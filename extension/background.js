@@ -44,10 +44,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 async function clipFromPopup(content, source) {
   try {
+    const body = source === 'url' ? { url: content } : { text: content };
     const response = await fetch(`${API_BASE}/ingest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, source }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -66,10 +67,11 @@ async function clipFromPopup(content, source) {
 
 async function clipContent(content, source, tab) {
   try {
+    const body = source === 'url' ? { url: content } : { text: content };
     const response = await fetch(`${API_BASE}/ingest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, source }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
