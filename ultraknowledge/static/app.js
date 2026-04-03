@@ -654,7 +654,7 @@
           <div class="graph-controls">
             <div>
               <label for="graph-charge" class="graph-control-label">DENSITY / CHARGE</label>
-              <input id="graph-charge" class="graph-slider" type="range" min="30" max="260" value="120">
+              <input id="graph-charge" class="graph-slider" type="range" min="-300" max="-20" value="-120">
             </div>
             <div>
               <label for="graph-link-distance" class="graph-control-label">LINK DISTANCE</label>
@@ -767,7 +767,7 @@
           container.style.cursor = node ? 'pointer' : 'grab';
         });
 
-      fg.d3Force('charge').strength(-Number(chargeInput.value));
+      fg.d3Force('charge').strength(Number(chargeInput.value));
       fg.d3Force('link').distance(Number(linkDistanceInput.value));
       fg.cooldownTicks(120);
       fg.onEngineStop(() => fg.zoomToFit(500, 60));
@@ -793,7 +793,7 @@
       onResize();
 
       const onChargeInput = () => {
-        fg.d3Force('charge').strength(-Number(chargeInput.value));
+        fg.d3Force('charge').strength(Number(chargeInput.value));
         fg.d3ReheatSimulation();
       };
       const onLinkDistanceInput = () => {
