@@ -158,7 +158,11 @@ class URLConnector:
         """Use fxtwitter API to get tweet + X article content (no auth required)."""
         api_url = f"https://api.fxtwitter.com/{author}/status/{tweet_id}"
         try:
-            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(
+                timeout=15.0,
+                follow_redirects=True,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; Lexicon/1.0)"},
+            ) as client:
                 resp = await client.get(api_url)
                 resp.raise_for_status()
                 data = resp.json()
