@@ -124,7 +124,7 @@ async def topics() -> dict[str, Any]:
         })
     # Most recently modified first
     items.sort(key=lambda x: x["modified"], reverse=True)
-    return {"topics": items[:5]}
+    return {"topics": items}
 
 
 @app.get("/api/graph")
@@ -337,7 +337,7 @@ async def compile_kb(req: CompileRequest) -> dict[str, Any]:
         return {"status": "compiled", "articles": len(paths)}
 
 
-@app.get("/api/last-compiled")
+@app.get("/last-compiled")
 async def last_compiled() -> dict[str, Any]:
     """Return the timestamp of the last successful compilation (for auto-refresh)."""
     return {"last_compiled_at": _last_compiled_at}

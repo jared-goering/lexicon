@@ -86,7 +86,7 @@
     } catch {
       // fallback to /articles
       const data = await api('GET', '/articles');
-      state.articles = (data.articles || []).slice(0, 5);
+      state.articles = data.articles || [];
     }
   }
 
@@ -195,7 +195,7 @@
   async function renderHome() {
     await Promise.all([loadStats(), loadTopics()]);
 
-    const cards = state.articles.slice(0, 5).map((a, i) => topicCardHTML(a, i)).join('');
+    const cards = state.articles.map((a, i) => topicCardHTML(a, i)).join('');
     const gridCols = state.articles.length === 0 ? '' : state.articles.length <= 3
       ? `grid-cols-1 sm:grid-cols-2 lg:grid-cols-${Math.min(3, state.articles.length)}`
       : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
