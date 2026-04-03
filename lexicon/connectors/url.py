@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import re as _re
 from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+
+# Matches twitter.com and x.com tweet URLs
+_TWEET_RE = _re.compile(
+    r"^https?://(?:(?:www\.)?(?:twitter|x)\.com)/(\w+)/status/(\d+)"
+)
 
 from lexicon.config import Settings, get_settings
 from lexicon.ultramemory_client import UltramemoryClient
@@ -50,10 +56,46 @@ class URLConnector:
         self.settings = settings or get_settings()
         self.client = client or UltramemoryClient(self.settings)
 
+    async def _fetch_tweet(self, url: str) -> dict[str, Any] | None:
+        """Use Twitter's public oembed API to extract tweet text (no auth needed)."""
+        m = _TWEET_RE.match(url)
+        if not m:
+            return None
+        author = m.group(1)
+        oembed_url = f"https://publish.twitter.com/oembed?url={url}&omit_script=true"
+        try:
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                resp = await client.get(oembed_url)
+                resp.raise_for_status()
+                data = resp.json()
+            # oembed html contains the tweet text in a <blockquote>
+            html_block = data.get("html", "")
+            # Strip HTML tags to get plain text
+            text = _re.sub(r"<[^>]+>", " ", html_block)
+            text = _re.sub(r"\s+", " ", text).strip()
+            author_name = data.get("author_name", author)
+            return {
+                "text": f"Tweet by @{author_name}:\n\n{text}",
+                "source": url,
+                "title": f"Tweet by @{author_name}",
+                "metadata": {
+                    "type": "tweet",
+                    "domain": urlparse(url).netloc,
+                    "author": author_name,
+                },
+            }
+        except (httpx.HTTPError, ValueError, KeyError):
+            return None
+
     async def fetch_and_ingest(self, url: str) -> dict[str, Any]:
         """Fetch a URL, extract readable text, send to Ultramemory, and return metadata."""
-        html = await self._fetch(url)
-        extracted = self._extract(html, url)
+        # Special handling for tweets (JS-rendered, need oembed)
+        tweet_data = await self._fetch_tweet(url)
+        if tweet_data:
+            extracted = tweet_data
+        else:
+            html = await self._fetch(url)
+            extracted = self._extract(html, url)
 
         # Send to Ultramemory for memory extraction and storage
         if extracted["text"].strip():
