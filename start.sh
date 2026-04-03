@@ -20,8 +20,8 @@ export UK_PORT="${UK_PORT:-8899}"
 echo "Starting UltraKnowledge server..."
 echo "  Model:  $UK_LLM_MODEL"
 echo "  Listen: $UK_HOST:$UK_PORT"
-echo "  Exa:    ${EXA_API_KEY:+configured}${EXA_API_KEY:-MISSING}"
-echo "  OpenAI: ${OPENAI_API_KEY:+configured}${OPENAI_API_KEY:-MISSING}"
+echo "  Exa:    $([ -n "$EXA_API_KEY" ] && echo 'configured' || echo 'MISSING')"
+echo "  OpenAI: $([ -n "$OPENAI_API_KEY" ] && echo 'configured' || echo 'MISSING')"
 
 exec uvicorn ultraknowledge.server:app \
   --host "$UK_HOST" \
