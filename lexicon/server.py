@@ -206,6 +206,7 @@ async def _do_ingest(req: IngestRequest) -> dict[str, Any]:
     source = "manual"
     title = req.title or "Untitled"
     memories_created = 0
+    chunk = None
 
     if req.url:
         chunk = await url_connector.fetch_and_ingest(req.url)
@@ -222,25 +223,24 @@ async def _do_ingest(req: IngestRequest) -> dict[str, Any]:
     else:
         raise HTTPException(status_code=400, detail="Provide either 'url' or 'text'")
 
-    # Auto-compile: find related topic from ingested content and compile it
+    # Auto-compile: compile an article from the ingested content only
     compiled_article = None
     if req.compile:
         try:
-            # Use the title/source as a topic hint for compilation
             topic_hint = title if title != "Untitled" else (req.text or "")[:200]
-            if topic_hint:
-                results = await um_client.search(topic_hint, top_k=50, include_source=True)
-                chunks = [
-                    {"text": r.get("content", ""), "source": r.get("source_session", source)}
-                    for r in results
-                ]
-                if chunks:
-                    path = await compiler.compile_topic(topic_hint, chunks)
-                    linker.generate_backlinks()
-                    linker.rebuild_index()
-                    compiled_article = str(path)
-                    global _last_compiled_at
-                    _last_compiled_at = time.time()
+            # Use the actual ingested text rather than searching all memories,
+            # which would pull in unrelated content from prior ingests.
+            ingest_text = req.text or ""
+            if req.url and chunk:
+                ingest_text = chunk.get("text", "")
+            if topic_hint and ingest_text.strip():
+                chunks = [{"text": ingest_text, "source": source}]
+                path = await compiler.compile_topic(topic_hint, chunks)
+                linker.generate_backlinks()
+                linker.rebuild_index()
+                compiled_article = str(path)
+                global _last_compiled_at
+                _last_compiled_at = time.time()
         except Exception:
             pass  # Compilation is best-effort; ingest still succeeded
 
