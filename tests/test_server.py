@@ -88,12 +88,12 @@ class TestReadEndpoints:
 class TestPathTraversal:
     def test_get_article_path_traversal(self, client):
         """Traversal attempt must not succeed — 400 or 404 are both safe."""
-        resp = client.get("/articles/..%2F..%2Fetc%2Fpasswd")
+        resp = client.get("/api/articles/..%2F..%2Fetc%2Fpasswd")
         assert resp.status_code in (400, 404)
 
     def test_get_article_dotdot_literal(self, client):
         """Literal '..' in slug must be rejected."""
-        resp = client.get("/articles/..%2Fetc")
+        resp = client.get("/api/articles/..%2Fetc")
         assert resp.status_code in (400, 404)
 
     def test_snapshot_path_traversal(self, client):
@@ -101,7 +101,7 @@ class TestPathTraversal:
         assert resp.status_code in (400, 404)
 
     def test_delete_article_path_traversal(self, client):
-        resp = client.delete("/articles/..%2F..%2Fetc%2Fpasswd")
+        resp = client.delete("/api/articles/..%2F..%2Fetc%2Fpasswd")
         assert resp.status_code in (400, 401, 404)
 
 
@@ -110,13 +110,13 @@ class TestPathTraversal:
 
 class TestValidation:
     def test_ingest_empty_body(self, client):
-        resp = client.post("/ingest", json={})
+        resp = client.post("/api/ingest", json={})
         # Empty body with no url/text should return 400 (app-level)
         # FastAPI returns 400 for our explicit check
         assert resp.status_code == 400
 
     def test_ingest_missing_body(self, client):
-        resp = client.post("/ingest")
+        resp = client.post("/api/ingest")
         assert resp.status_code == 422
 
 
@@ -150,13 +150,13 @@ class TestAuth:
 
     def test_write_endpoint_requires_token(self, authed_client):
         """Write endpoints without token should return 401."""
-        resp = authed_client.post("/ingest", json={"url": "https://example.com"})
+        resp = authed_client.post("/api/ingest", json={"url": "https://example.com"})
         assert resp.status_code == 401
 
     def test_write_endpoint_with_valid_token(self, authed_client):
         """Write endpoints with valid token should not return 401."""
         resp = authed_client.post(
-            "/ingest",
+            "/api/ingest",
             json={"text": "hello"},
             headers={"Authorization": "Bearer test-secret-token"},
         )

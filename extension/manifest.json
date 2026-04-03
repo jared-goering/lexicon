@@ -5,6 +5,7 @@
   "version": "1.0.0",
   "permissions": ["activeTab", "contextMenus", "storage"],
   "host_permissions": ["http://localhost:8899/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

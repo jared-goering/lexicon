@@ -23,7 +23,8 @@
       margin-bottom: 0.4rem;
       color: #444;
     }
-    input[type="url"] {
+    input[type="url"],
+    input[type="password"] {
       width: 100%;
       padding: 0.5rem 0.6rem;
       font-size: 0.9rem;
@@ -64,6 +65,9 @@
   <label for="apiBase">Server URL</label>
   <input type="url" id="apiBase" placeholder="http://localhost:8899">
   <p class="hint">The base URL of your Lexicon server. Default: http://localhost:8899</p>
+  <label for="apiToken" style="margin-top: 1.2rem;">API Token</label>
+  <input type="password" id="apiToken" placeholder="Optional — required if LEXICON_API_TOKEN is set">
+  <p class="hint">Bearer token for authenticated endpoints. Leave blank if auth is disabled.</p>
   <button id="save">Save</button>
   <span class="saved" id="saved">Saved!</span>
   <script src="options.js"></script>

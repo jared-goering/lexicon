@@ -8,6 +8,15 @@ async function getApiBase() {
   return apiBase || DEFAULT_API_BASE;
 }
 
+async function getAuthHeaders() {
+  const { apiToken } = await chrome.storage.sync.get('apiToken');
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiToken) {
+    headers['Authorization'] = `Bearer ${apiToken}`;
+  }
+  return headers;
+}
+
 // Register context menus on install
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -50,10 +59,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 async function clipFromPopup(content, source) {
   try {
     const API_BASE = await getApiBase();
+    const headers = await getAuthHeaders();
     const body = source === 'url' ? { url: content } : { text: content };
-    const response = await fetch(`${API_BASE}/ingest`, {
+    const response = await fetch(`${API_BASE}/api/ingest`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
     });
 
@@ -74,10 +84,11 @@ async function clipFromPopup(content, source) {
 async function clipContent(content, source, tab) {
   try {
     const API_BASE = await getApiBase();
+    const headers = await getAuthHeaders();
     const body = source === 'url' ? { url: content } : { text: content };
-    const response = await fetch(`${API_BASE}/ingest`, {
+    const response = await fetch(`${API_BASE}/api/ingest`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
     });
 
@@ -136,7 +147,8 @@ async function maybeAutoCompile() {
   if (autoCompile) {
     try {
       const API_BASE = await getApiBase();
-      await fetch(`${API_BASE}/compile`, { method: 'POST' });
+      const headers = await getAuthHeaders();
+      await fetch(`${API_BASE}/api/compile`, { method: 'POST', headers });
     } catch {
       // Compile is best-effort
     }

@@ -94,7 +94,7 @@
       state.articles = data.topics || [];
     } catch {
       // fallback to /articles
-      const data = await api('GET', '/articles');
+      const data = await api('GET', '/api/articles');
       state.articles = data.articles || [];
     }
   }
@@ -302,7 +302,7 @@
       if (getRoute().view !== 'home') { clearInterval(homeRefreshId); return; }
       try {
         const [compRes, procRes] = await Promise.all([
-          api('GET', '/last-compiled'),
+          api('GET', '/api/last-compiled'),
           api('GET', '/api/processing'),
         ]);
         const items = procRes.items || [];
@@ -349,7 +349,7 @@
     `;
 
     try {
-      const data = await api('GET', `/articles/${encodeURIComponent(slug)}`);
+      const data = await api('GET', `/api/articles/${encodeURIComponent(slug)}`);
       let content = data.content || '';
 
       // Strip YAML frontmatter (---\n...\n---) before rendering
@@ -517,7 +517,7 @@
   }
 
   async function exportArticleAsset(slug, format) {
-    const result = await api('POST', '/export', { topic: slug, format });
+    const result = await api('POST', '/api/export', { topic: slug, format });
     if (!result.filename) throw new Error('Missing export filename');
     await downloadFile(`/api/exports/${encodeURIComponent(result.filename)}`, result.filename);
     return result.filename;
@@ -583,7 +583,7 @@
     try {
       const payload = { question };
       if (articleCtx) payload.article_slug = articleCtx;
-      const data = await api('POST', '/ask', payload);
+      const data = await api('POST', '/api/ask', payload);
       statusTimers.forEach(clearTimeout);
       const answer = data.answer || 'No answer available.';
       const citations = data.citations || [];
@@ -702,7 +702,7 @@
     `;
 
     try {
-      const data = await api('POST', '/research', { query, num_results: 10, compile: false });
+      const data = await api('POST', '/api/research', { query, num_results: 10, compile: false });
       const results = data.results || [];
 
       app().innerHTML = `
@@ -1098,7 +1098,7 @@
     updateIngestionFeed();
 
     try {
-      const data = await api('POST', '/ingest', body);
+      const data = await api('POST', '/api/ingest', body);
       item.status = 'done';
       item.title = data.title;
       item.memories = data.memories_created;
@@ -1218,7 +1218,7 @@
           }
         });
         xhr.addEventListener('error', () => reject(new Error('Upload failed')));
-        xhr.open('POST', '/ingest-media');
+        xhr.open('POST', '/api/ingest-media');
         xhr.send(formData);
       });
 
@@ -1250,7 +1250,7 @@
     for (const cb of checks) {
       const url = cb.dataset.url;
       try {
-        await api('POST', '/ingest', { url });
+        await api('POST', '/api/ingest', { url });
         ingested++;
       } catch { /* skip failed */ }
     }
@@ -1323,7 +1323,7 @@
     overlay.querySelector('.uk-confirm-delete').addEventListener('click', async () => {
       overlay.remove();
       try {
-        const res = await fetch(`/articles/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+        const res = await fetch(`/api/articles/${encodeURIComponent(slug)}`, { method: 'DELETE' });
         if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || res.statusText); }
         showToast('Article deleted');
         window.location.hash = '';

@@ -144,7 +144,7 @@ See [[Self Attention]].
 
     client = TestClient(server.app)
 
-    export_response = client.post("/export", json={"topic": "transformers", "format": "html"})
+    export_response = client.post("/api/export", json={"topic": "transformers", "format": "html"})
     assert export_response.status_code == 200
     filename = export_response.json()["filename"]
 

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import ipaddress
+import os
 import re as _re
+import socket
 from typing import Any
 from urllib.parse import urlparse
 
@@ -17,6 +20,31 @@ _TWEET_RE = _re.compile(
 
 from lexicon.config import Settings, get_settings
 from lexicon.ultramemory_client import UltramemoryClient
+
+
+def _is_private_ip(hostname: str) -> bool:
+    """Return True if hostname resolves to a private/loopback/link-local IP."""
+    try:
+        infos = socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP)
+    except socket.gaierror:
+        return False
+    for family, _type, _proto, _canonname, sockaddr in infos:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            return True
+    return False
+
+
+def _check_ssrf(url: str) -> None:
+    """Raise ValueError if the URL targets a private/internal network address."""
+    if os.environ.get("LEXICON_ALLOW_PRIVATE_URLS", "").lower() in ("1", "true", "yes"):
+        return
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ""
+    if not hostname:
+        raise ValueError(f"Invalid URL (no hostname): {url}")
+    if _is_private_ip(hostname):
+        raise ValueError(f"URL targets a private/internal address: {hostname}")
 
 
 def _extract_with_trafilatura(html: str, url: str) -> str | None:
@@ -238,6 +266,7 @@ class URLConnector:
 
     async def fetch_and_ingest(self, url: str) -> dict[str, Any]:
         """Fetch a URL, extract readable text, send to Ultramemory, and return metadata."""
+        _check_ssrf(url)
         # Special handling for tweets (JS-rendered, need oembed/fxtwitter)
         tweet_data = await self._fetch_tweet(url)
         if tweet_data:
@@ -272,6 +301,8 @@ class URLConnector:
 
     async def fetch_batch(self, urls: list[str]) -> list[dict[str, Any]]:
         """Fetch multiple URLs concurrently."""
+        for url in urls:
+            _check_ssrf(url)
         async with httpx.AsyncClient(
             timeout=30.0,
             follow_redirects=True,

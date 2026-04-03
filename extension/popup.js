@@ -30,11 +30,21 @@ async function getApiBase() {
   return apiBase || DEFAULT_API_BASE;
 }
 
+async function getAuthHeaders() {
+  const { apiToken } = await chrome.storage.sync.get('apiToken');
+  const headers = {};
+  if (apiToken) {
+    headers['Authorization'] = `Bearer ${apiToken}`;
+  }
+  return headers;
+}
+
 // Check server connection
 async function checkConnection() {
   try {
     const API_BASE = await getApiBase();
-    const res = await fetch(`${API_BASE}/api/stats`, { signal: AbortSignal.timeout(3000) });
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/stats`, { signal: AbortSignal.timeout(3000), headers });
     if (!res.ok) throw new Error();
     const data = await res.json();
 

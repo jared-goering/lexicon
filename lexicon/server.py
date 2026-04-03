@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 import mimetypes
 from pathlib import Path
+import secrets
 from typing import Any
 import unicodedata
 
@@ -24,6 +25,7 @@ from lexicon.linter import KBLinter
 from lexicon.qa import QAAgent
 from lexicon.research import ResearchAgent
 from lexicon.ultramemory_client import UltramemoryClient
+from lexicon.utils import safe_slug
 
 app = FastAPI(
     title="lexicon",
@@ -49,8 +51,13 @@ async def require_auth(request: Request) -> None:
     token = settings.api_token
     if not token:
         return
-    auth = request.headers.get("authorization", "")
-    if auth != f"Bearer {token}":
+    auth = request.headers.get("authorization", "") or request.headers.get("Authorization", "")
+    prefix = "bearer "
+    if auth.lower().startswith(prefix):
+        provided = auth[len(prefix):].strip()
+    else:
+        provided = ""
+    if not provided or not secrets.compare_digest(token, provided):
         raise HTTPException(status_code=401, detail="Invalid or missing API token")
 um_client = UltramemoryClient(settings)
 compiler = WikiCompiler(settings, client=um_client)
@@ -204,7 +211,7 @@ async def processing_status() -> dict[str, Any]:
     return {"processing": _processing_count, "items": items}
 
 
-@app.post("/ingest", dependencies=[Depends(require_auth)])
+@app.post("/api/ingest", dependencies=[Depends(require_auth)])
 async def ingest(req: IngestRequest) -> dict[str, Any]:
     """Ingest a URL or raw text into the knowledge base."""
     global _processing_count
@@ -287,7 +294,7 @@ _MAX_AUDIO = 25 * 1024 * 1024   # 25 MB
 _MAX_VIDEO = 50 * 1024 * 1024   # 50 MB
 
 
-@app.post("/ingest-media", dependencies=[Depends(require_auth)])
+@app.post("/api/ingest-media", dependencies=[Depends(require_auth)])
 async def ingest_media(file: UploadFile = File(...)) -> dict[str, Any]:
     """Ingest a media file (image/audio/video) into the knowledge base."""
     import tempfile
@@ -310,7 +317,12 @@ async def ingest_media(file: UploadFile = File(...)) -> dict[str, Any]:
     else:
         max_size = _MAX_VIDEO
 
-    # Save to temp file and validate size
+    # Reject oversized uploads early via Content-Length header
+    if file.size is not None and file.size > max_size:
+        max_mb = max_size // (1024 * 1024)
+        raise HTTPException(status_code=413, detail=f"File too large. Max {max_mb}MB for {ext} files.")
+
+    # Save to temp file and validate size during streaming
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
     try:
         size = 0
@@ -370,7 +382,7 @@ async def ingest_media(file: UploadFile = File(...)) -> dict[str, Any]:
         Path(tmp.name).unlink(missing_ok=True)
 
 
-@app.post("/search")
+@app.post("/api/search")
 async def search(req: SearchRequest) -> dict[str, Any]:
     """Semantic search across the knowledge base via Ultramemory."""
     results = await um_client.search(req.query, top_k=req.limit)
@@ -389,14 +401,14 @@ async def search(req: SearchRequest) -> dict[str, Any]:
     }
 
 
-@app.post("/ask", dependencies=[Depends(require_auth)])
+@app.post("/api/ask", dependencies=[Depends(require_auth)])
 async def ask(req: AskRequest) -> dict[str, Any]:
     """Ask a question and get an answer with citations."""
     question = req.question
     # If asking from an article page, prepend article content as context
     if req.article_slug:
-        safe_slug = Path(req.article_slug).name
-        article_path = settings.articles_dir / f"{safe_slug}.md"
+        slug = safe_slug(req.article_slug)
+        article_path = settings.articles_dir / f"{slug}.md"
         if article_path.exists():
             article_text = article_path.read_text()[:4000]  # Cap context size
             question = f"[Context from article '{safe_slug}':\n{article_text}\n]\n\nQuestion: {req.question}"
@@ -413,7 +425,7 @@ async def ask(req: AskRequest) -> dict[str, Any]:
     }
 
 
-@app.post("/research", dependencies=[Depends(require_auth)])
+@app.post("/api/research", dependencies=[Depends(require_auth)])
 async def research(req: ResearchRequest) -> dict[str, Any]:
     """Research a topic via Exa web search and ingest results into Ultramemory."""
     if not settings.exa_api_key:
@@ -437,7 +449,7 @@ async def research(req: ResearchRequest) -> dict[str, Any]:
     }
 
 
-@app.get("/articles")
+@app.get("/api/articles")
 async def list_articles() -> dict[str, Any]:
     """List all wiki articles."""
     articles_dir = settings.articles_dir
@@ -456,13 +468,11 @@ async def list_articles() -> dict[str, Any]:
     return {"articles": articles}
 
 
-@app.get("/articles/{slug}")
+@app.get("/api/articles/{slug}")
 async def get_article(slug: str) -> dict[str, Any]:
     """Read a specific article by slug."""
-    safe_slug = Path(slug).name
-    if safe_slug != slug or ".." in slug:
-        raise HTTPException(status_code=400, detail="Invalid slug")
-    article_path = settings.articles_dir / f"{safe_slug}.md"
+    slug = safe_slug(slug)
+    article_path = settings.articles_dir / f"{slug}.md"
     if not article_path.exists():
         raise HTTPException(status_code=404, detail=f"Article not found: {slug}")
 
@@ -470,14 +480,11 @@ async def get_article(slug: str) -> dict[str, Any]:
     return {"slug": slug, "content": content}
 
 
-@app.delete("/articles/{slug}", dependencies=[Depends(require_auth)])
+@app.delete("/api/articles/{slug}", dependencies=[Depends(require_auth)])
 async def delete_article(slug: str) -> dict[str, Any]:
     """Delete a wiki article by slug. Removes the .md file and rebuilds links/index."""
-    # Sanitise slug to prevent path traversal
-    safe_slug = Path(slug).name
-    if safe_slug != slug or ".." in slug:
-        raise HTTPException(status_code=400, detail="Invalid slug")
-    article_path = settings.articles_dir / f"{safe_slug}.md"
+    slug = safe_slug(slug)
+    article_path = settings.articles_dir / f"{slug}.md"
     if not article_path.exists():
         raise HTTPException(status_code=404, detail=f"Article not found: {slug}")
     article_path.unlink()
@@ -489,7 +496,7 @@ async def delete_article(slug: str) -> dict[str, Any]:
     return {"status": "deleted", "slug": slug}
 
 
-@app.post("/compile", dependencies=[Depends(require_auth)])
+@app.post("/api/compile", dependencies=[Depends(require_auth)])
 async def compile_kb(req: CompileRequest) -> dict[str, Any]:
     """Trigger wiki compilation — either a single topic or full recompile."""
     if req.topic:
@@ -515,13 +522,13 @@ async def compile_kb(req: CompileRequest) -> dict[str, Any]:
         return {"status": "compiled", "articles": len(paths)}
 
 
-@app.get("/last-compiled")
+@app.get("/api/last-compiled")
 async def last_compiled() -> dict[str, Any]:
     """Return the timestamp of the last successful compilation (for auto-refresh)."""
     return {"last_compiled_at": _last_compiled_at}
 
 
-@app.post("/lint")
+@app.post("/api/lint")
 async def lint_kb() -> dict[str, Any]:
     """Run quality checks on the knowledge base."""
     report = await linter.lint()
@@ -541,7 +548,7 @@ async def lint_kb() -> dict[str, Any]:
     }
 
 
-@app.post("/export")
+@app.post("/api/export")
 async def export_article(req: ExportRequest) -> dict[str, Any]:
     """Export an article in the specified format."""
     export_fn = {
@@ -602,11 +609,9 @@ async def snapshot_article(req: SnapshotRequest) -> FileResponse:
 @app.get("/api/snapshot/{slug}")
 async def snapshot_article_direct(slug: str) -> FileResponse:
     """Generate a static article snapshot and serve it directly."""
-    safe_slug = Path(slug).name
-    if safe_slug != slug or ".." in slug:
-        raise HTTPException(status_code=400, detail="Invalid slug")
+    slug = safe_slug(slug)
     try:
-        result = exporter.snapshot_article(safe_slug)
+        result = exporter.snapshot_article(slug)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=f"Article not found: {slug}") from exc
 

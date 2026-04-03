@@ -564,6 +564,8 @@ class Exporter:
             return self._basic_markdown_to_html(markdown_text, link_wikilinks=link_wikilinks)
 
     def _basic_markdown_to_html(self, markdown_text: str, *, link_wikilinks: bool) -> str:
+        # Sanitize user content — _inline_markdown calls html.escape() on
+        # each text fragment, and code blocks are escaped explicitly below.
         lines = markdown_text.splitlines()
         blocks: list[str] = []
         list_buffer: list[str] = []
