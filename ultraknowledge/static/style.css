@@ -567,6 +567,26 @@
   box-shadow: 0 4px 12px rgba(46, 125, 201, 0.08);
 }
 
+.article-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.article-delete-btn:hover {
+  border-color: #c0392b;
+  color: #c0392b;
+  background: rgba(192, 57, 43, 0.05);
+}
+
 .article-export-menu {
   position: absolute;
   top: calc(100% + 0.5rem);

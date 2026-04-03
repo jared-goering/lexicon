@@ -332,25 +332,27 @@
             </div>
 
             <div class="article-toolbar">
-              <div>
+              <div style="flex:1;min-width:0">
                 <h1 class="font-display text-3xl sm:text-4xl leading-tight" style="letter-spacing:-0.01em">${escapeHTML(title)}</h1>
                 <p class="font-mono text-[9px] text-text-muted tracking-[0.22em] mt-3">COMPILED ARTICLE &middot; STATIC VIEW</p>
               </div>
-              <div class="article-export-shell" id="article-export-shell">
-                <button type="button" id="article-export-btn" class="article-export-btn">
-                  <span class="font-mono text-[10px] tracking-[0.2em]">EXPORT</span>
-                </button>
-                <div id="article-export-menu" class="article-export-menu hidden">
-                  <button type="button" class="article-export-option" data-export-kind="report">REPORT (MD)</button>
-                  <button type="button" class="article-export-option" data-export-kind="briefing">BRIEFING (MD)</button>
-                  <button type="button" class="article-export-option" data-export-kind="slides">SLIDES (MARP)</button>
-                  <button type="button" class="article-export-option" data-export-kind="snapshot">HTML SNAPSHOT</button>
-                  <button type="button" class="article-export-option" data-export-kind="pdf">PDF</button>
+              <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+                <div class="article-export-shell" id="article-export-shell" style="position:relative">
+                  <button type="button" id="article-export-btn" class="article-export-btn">
+                    <span class="font-mono text-[10px] tracking-[0.2em]">EXPORT ▾</span>
+                  </button>
+                  <div id="article-export-menu" class="article-export-menu hidden">
+                    <button type="button" class="article-export-option" data-export-kind="report">REPORT (MD)</button>
+                    <button type="button" class="article-export-option" data-export-kind="briefing">BRIEFING (MD)</button>
+                    <button type="button" class="article-export-option" data-export-kind="slides">SLIDES (MARP)</button>
+                    <button type="button" class="article-export-option" data-export-kind="snapshot">HTML SNAPSHOT</button>
+                    <button type="button" class="article-export-option" data-export-kind="pdf">PDF</button>
+                  </div>
                 </div>
+                <button type="button" id="article-delete-btn" class="article-delete-btn" onclick="deleteArticle('${escapeAttr(slug)}')" title="Delete article">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
               </div>
-              <button type="button" id="article-delete-btn" class="article-export-btn" style="color:var(--text-muted);border-color:var(--border-subtle)" onclick="deleteArticle('${escapeAttr(slug)}')">
-                <span class="font-mono text-[10px] tracking-[0.2em]">DELETE</span>
-              </button>
             </div>
           </div>
 
