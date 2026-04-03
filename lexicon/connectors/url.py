@@ -231,12 +231,24 @@ class URLConnector:
         except (httpx.HTTPError, ValueError, KeyError):
             return None
 
+    # Domains that are JS-rendered and useless to scrape raw HTML from
+    _JS_ONLY_DOMAINS = {"twitter.com", "x.com", "www.twitter.com", "www.x.com"}
+
     async def fetch_and_ingest(self, url: str) -> dict[str, Any]:
         """Fetch a URL, extract readable text, send to Ultramemory, and return metadata."""
-        # Special handling for tweets (JS-rendered, need oembed)
+        # Special handling for tweets (JS-rendered, need oembed/fxtwitter)
         tweet_data = await self._fetch_tweet(url)
         if tweet_data:
             extracted = tweet_data
+        elif urlparse(url).netloc.replace("www.", "") in ("twitter.com", "x.com"):
+            # Tweet extraction failed — don't fall back to scraping JS shell
+            return {
+                "text": "",
+                "source": url,
+                "title": "Tweet (extraction failed)",
+                "metadata": {"type": "tweet", "error": "Could not extract tweet content via fxtwitter or oembed"},
+                "ultramemory": {"memories_created": 0, "session_key": ""},
+            }
         else:
             html = await self._fetch(url)
             extracted = self._extract(html, url)

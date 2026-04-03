@@ -209,7 +209,10 @@ async def _do_ingest(req: IngestRequest) -> dict[str, Any]:
     chunk = None
 
     if req.url:
-        chunk = await url_connector.fetch_and_ingest(req.url)
+        try:
+            chunk = await url_connector.fetch_and_ingest(req.url)
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail=f"Failed to fetch URL: {exc}")
         source = req.url
         title = chunk.get("title", "Untitled")
         memories_created = chunk.get("ultramemory", {}).get("memories_created", 0)
