@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from lexicon import __version__
 from lexicon.compiler import WikiCompiler
 from lexicon.config import get_settings
 from lexicon.connectors.url import URLConnector
@@ -27,7 +28,7 @@ from lexicon.ultramemory_client import UltramemoryClient
 app = FastAPI(
     title="lexicon",
     description="LLM-compiled personal knowledge base",
-    version="0.1.0",
+    version=__version__,
 )
 
 settings = get_settings()

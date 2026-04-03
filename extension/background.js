@@ -1,7 +1,12 @@
 // Lexicon Web Clipper — Background Service Worker
 
-const API_BASE = 'http://localhost:8899';
+const DEFAULT_API_BASE = 'http://localhost:8899';
 const MAX_RECENT_CLIPS = 20;
+
+async function getApiBase() {
+  const { apiBase } = await chrome.storage.sync.get('apiBase');
+  return apiBase || DEFAULT_API_BASE;
+}
 
 // Register context menus on install
 chrome.runtime.onInstalled.addListener(() => {
@@ -44,6 +49,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
 async function clipFromPopup(content, source) {
   try {
+    const API_BASE = await getApiBase();
     const body = source === 'url' ? { url: content } : { text: content };
     const response = await fetch(`${API_BASE}/ingest`, {
       method: 'POST',
@@ -67,6 +73,7 @@ async function clipFromPopup(content, source) {
 
 async function clipContent(content, source, tab) {
   try {
+    const API_BASE = await getApiBase();
     const body = source === 'url' ? { url: content } : { text: content };
     const response = await fetch(`${API_BASE}/ingest`, {
       method: 'POST',
@@ -128,6 +135,7 @@ async function maybeAutoCompile() {
   const { autoCompile = false } = await chrome.storage.local.get('autoCompile');
   if (autoCompile) {
     try {
+      const API_BASE = await getApiBase();
       await fetch(`${API_BASE}/compile`, { method: 'POST' });
     } catch {
       // Compile is best-effort

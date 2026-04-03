@@ -1,6 +1,6 @@
 // Lexicon Web Clipper — Popup Script
 
-const API_BASE = 'http://localhost:8899';
+const DEFAULT_API_BASE = 'http://localhost:8899';
 
 const $ = (sel) => document.querySelector(sel);
 const statusDot = $('#statusDot');
@@ -25,9 +25,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   await checkSelection();
 });
 
+async function getApiBase() {
+  const { apiBase } = await chrome.storage.sync.get('apiBase');
+  return apiBase || DEFAULT_API_BASE;
+}
+
 // Check server connection
 async function checkConnection() {
   try {
+    const API_BASE = await getApiBase();
     const res = await fetch(`${API_BASE}/api/stats`, { signal: AbortSignal.timeout(3000) });
     if (!res.ok) throw new Error();
     const data = await res.json();

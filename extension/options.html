@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lexicon Web Clipper — Options</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 440px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      color: #1a1a1a;
+      background: #f8f8f8;
+    }
+    h1 {
+      font-size: 1.2rem;
+      margin-bottom: 1.5rem;
+    }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: #444;
+    }
+    input[type="url"] {
+      width: 100%;
+      padding: 0.5rem 0.6rem;
+      font-size: 0.9rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-sizing: border-box;
+    }
+    .hint {
+      font-size: 0.75rem;
+      color: #888;
+      margin-top: 0.3rem;
+    }
+    button {
+      margin-top: 1.2rem;
+      padding: 0.5rem 1.4rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #fff;
+      background: #1a1a1a;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #333; }
+    .saved {
+      display: inline-block;
+      margin-left: 0.8rem;
+      font-size: 0.85rem;
+      color: #3AE89B;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .saved.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <h1>Lexicon Web Clipper Options</h1>
+  <label for="apiBase">Server URL</label>
+  <input type="url" id="apiBase" placeholder="http://localhost:8899">
+  <p class="hint">The base URL of your Lexicon server. Default: http://localhost:8899</p>
+  <button id="save">Save</button>
+  <span class="saved" id="saved">Saved!</span>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -64,7 +64,7 @@ The wiki is the output, not the input.
 ### Install
 
 ```bash
-pip install lexicon
+pip install lexiconai
 ```
 
 ### Set up
@@ -187,7 +187,7 @@ uk watch <topic>        Run recurring research, compile, and lint cycles
 lexicon works great with local models via Ollama:
 
 ```bash
-pip install lexicon[local]
+pip install lexiconai[local]
 export LEXICON_LLM_MODEL="ollama/llama3"
 uk serve
 ```
@@ -211,8 +211,8 @@ This section is preserved across recompilations.
 ## Development
 
 ```bash
-git clone https://github.com/jared-goering/lexicon
-cd lexicon
+git clone https://github.com/jared-goering/lexiconai
+cd lexiconai
 pip install -e ".[dev]"
 pytest
 ```

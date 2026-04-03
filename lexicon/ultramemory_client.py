@@ -29,6 +29,13 @@ class UltramemoryClient:
     def _get_engine(self):
         """Lazy-init the embedded MemoryEngine with lexicon's own DB."""
         if self._engine is None:
+            try:
+                import sentence_transformers  # noqa: F401
+            except ImportError:
+                raise ImportError(
+                    "sentence-transformers is required for embedded mode. "
+                    "Install it with: pip install 'lexiconai[local]'"
+                ) from None
             from ultramemory.engine import MemoryEngine
 
             db_path = str(self.settings.ultramemory_db_path)
