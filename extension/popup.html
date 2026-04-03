@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=360">
+  <link rel="stylesheet" href="popup.css">
+  <title>UltraKnowledge Web Clipper</title>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <svg class="logo" width="28" height="28" viewBox="0 0 28 28">
+          <circle cx="9" cy="9" r="4" fill="#E8913A"/>
+          <circle cx="19" cy="9" r="4" fill="#3A8FE8"/>
+          <circle cx="9" cy="19" r="4" fill="#6B3AE8"/>
+          <circle cx="19" cy="19" r="4" fill="#3AE89B"/>
+        </svg>
+        <span class="brand-name">ULTRAKNOWLEDGE</span>
+      </div>
+      <div class="status" id="status">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">Connecting...</span>
+      </div>
+    </header>
+
+    <!-- Stats -->
+    <div class="stats" id="stats" style="display:none;">
+      <div class="stat">
+        <span class="stat-value" id="totalMemories">—</span>
+        <span class="stat-label">Memories</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="articleCount">—</span>
+        <span class="stat-label">Articles</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button class="btn btn-primary" id="clipPage">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="2" width="12" height="12" rx="2"/>
+          <path d="M5 8h6M8 5v6"/>
+        </svg>
+        CLIP THIS PAGE
+      </button>
+      <button class="btn btn-secondary" id="clipSelection" disabled>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 3h8M4 6.5h8M4 10h5"/>
+          <rect x="10" y="9" width="4" height="4" rx="1"/>
+        </svg>
+        CLIP SELECTION
+      </button>
+    </div>
+
+    <!-- Toggle -->
+    <div class="toggle-row">
+      <label class="toggle-label" for="autoCompile">Auto-compile after clip</label>
+      <label class="toggle">
+        <input type="checkbox" id="autoCompile">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <!-- Recent Clips -->
+    <div class="recent" id="recentSection" style="display:none;">
+      <h3 class="section-title">Recent Clips</h3>
+      <ul class="clip-list" id="clipList"></ul>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
