@@ -900,6 +900,65 @@ input[type="checkbox"].research-check {
 }
 
 /* ─── Toast ─────────────────────────────────────────────────── */
+/* ─── Delete confirmation overlay ──────────────────────────── */
+.uk-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(26, 23, 20, 0.35);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.uk-confirm-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px 28px;
+  box-shadow: 0 16px 48px rgba(26, 23, 20, 0.18);
+  max-width: 340px;
+  width: 90%;
+  animation: scaleIn 0.2s ease both;
+}
+
+.uk-confirm-cancel {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 8px 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.uk-confirm-cancel:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.uk-confirm-delete {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 8px 18px;
+  border: 1px solid #c0392b;
+  border-radius: 8px;
+  background: #c0392b;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.uk-confirm-delete:hover {
+  background: #a93226;
+  border-color: #a93226;
+}
+
 .uk-toast {
   position: fixed;
   bottom: 3.5rem;

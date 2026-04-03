@@ -1059,16 +1059,38 @@
   });
 
   // ─── Toast ───────────────────────────────────────────────────────────
-  window.deleteArticle = async function deleteArticle(slug) {
-    if (!confirm(`Delete article "${slug.replace(/-/g, ' ')}"? This cannot be undone.`)) return;
-    try {
-      const res = await fetch(`/articles/${encodeURIComponent(slug)}`, { method: 'DELETE' });
-      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || res.statusText); }
-      showToast('Article deleted');
-      window.location.hash = '';
-    } catch (err) {
-      showToast('Delete failed: ' + err.message);
-    }
+  window.deleteArticle = function deleteArticle(slug) {
+    // Show inline confirmation overlay instead of native confirm()
+    const overlay = document.createElement('div');
+    overlay.className = 'uk-confirm-overlay';
+    overlay.innerHTML = `
+      <div class="uk-confirm-card">
+        <p style="margin:0 0 4px;font-family:var(--font-display);font-size:1.1rem;color:var(--text-primary)">Delete article?</p>
+        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted)">"${escapeHTML(slug.replace(/-/g, ' '))}" will be permanently removed.</p>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" class="uk-confirm-cancel">Cancel</button>
+          <button type="button" class="uk-confirm-delete">Delete</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    // Small delay so the overlay can paint before we attach listeners
+    requestAnimationFrame(() => overlay.style.opacity = '1');
+
+    overlay.querySelector('.uk-confirm-cancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    overlay.querySelector('.uk-confirm-delete').addEventListener('click', async () => {
+      overlay.remove();
+      try {
+        const res = await fetch(`/articles/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || res.statusText); }
+        showToast('Article deleted');
+        window.location.hash = '';
+      } catch (err) {
+        showToast('Delete failed: ' + err.message);
+      }
+    });
   };
 
   function showToast(msg) {
