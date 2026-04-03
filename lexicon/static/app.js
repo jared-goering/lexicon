@@ -212,6 +212,10 @@
           <h1 class="uk-hero-title">Lexi<em class="font-display italic" style="font-style:italic">con</em></h1>
           <p class="uk-hero-subtitle">LLM-COMPILED KNOWLEDGE BASE</p>
         </div>
+        <div id="uk-processing-banner" class="uk-processing-banner" style="display:none">
+          <div class="uk-processing-spinner"></div>
+          <span class="uk-processing-text font-mono text-[11px] tracking-[0.12em]">Processing\u2026</span>
+        </div>
         <div class="w-full max-w-4xl flex flex-col sm:flex-row items-stretch sm:items-center gap-3 animate-fade-in-up" style="animation-delay:0.1s">
           <div class="flex-1">
             ${searchBarHTML('Ask your knowledge base anything\u2026', 'home-search')}
@@ -260,21 +264,47 @@
 
     bindSearchInput('home-search');
 
-    // Auto-refresh: poll for new compilations every 5s
+    // Auto-refresh: poll for new compilations and processing status every 3s
     let lastCompiled = 0;
     const homeRefreshId = setInterval(async () => {
       // Stop polling if we navigated away from home
       if (getRoute().view !== 'home') { clearInterval(homeRefreshId); return; }
       try {
-        const res = await api('GET', '/last-compiled');
-        if (lastCompiled > 0 && res.last_compiled_at > lastCompiled) {
+        const [compRes, procRes] = await Promise.all([
+          api('GET', '/last-compiled'),
+          api('GET', '/api/processing'),
+        ]);
+        // Show/hide processing indicator
+        const banner = document.getElementById('uk-processing-banner');
+        if (banner) {
+          if (procRes.processing > 0) {
+            banner.style.display = 'flex';
+            banner.querySelector('.uk-processing-text').textContent =
+              `Processing ${procRes.processing} clip${procRes.processing > 1 ? 's' : ''}\u2026`;
+          } else {
+            banner.style.display = 'none';
+          }
+        }
+        // Refresh home when new compilation lands
+        if (lastCompiled > 0 && compRes.last_compiled_at > lastCompiled) {
           clearInterval(homeRefreshId);
           navigate('/');  // re-render home with new articles
           return;
         }
-        lastCompiled = res.last_compiled_at;
+        lastCompiled = compRes.last_compiled_at;
       } catch { /* ignore */ }
-    }, 5000);
+    }, 3000);
+
+    // Also check immediately on load
+    try {
+      const procRes = await api('GET', '/api/processing');
+      const banner = document.getElementById('uk-processing-banner');
+      if (banner && procRes.processing > 0) {
+        banner.style.display = 'flex';
+        banner.querySelector('.uk-processing-text').textContent =
+          `Processing ${procRes.processing} clip${procRes.processing > 1 ? 's' : ''}\u2026`;
+      }
+    } catch { /* ignore */ }
   }
 
   // ─── Article View ────────────────────────────────────────────────────

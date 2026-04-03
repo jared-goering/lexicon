@@ -1034,3 +1034,36 @@ input[type="checkbox"].research-check {
   }
   }
 }
+
+/* Processing indicator banner */
+.uk-processing-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 56rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, rgba(217, 123, 43, 0.08), rgba(46, 125, 201, 0.08));
+  border: 1px solid rgba(217, 123, 43, 0.2);
+  border-radius: 12px;
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.uk-processing-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(217, 123, 43, 0.2);
+  border-top-color: var(--accent-orange, #D97B2B);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.uk-processing-text {
+  color: var(--accent-orange, #D97B2B);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

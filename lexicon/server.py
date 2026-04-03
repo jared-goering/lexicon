@@ -45,7 +45,10 @@ app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
 
 # Track last compilation timestamp for auto-refresh
 import time
+import threading
 _last_compiled_at: float = 0.0
+_processing_count: int = 0
+_processing_lock = threading.Lock()
 
 # --- Request/Response models ---
 
@@ -169,9 +172,27 @@ async def graph() -> dict[str, Any]:
     return {"nodes": nodes, "edges": edges, "clusters": clusters}
 
 
+@app.get("/api/processing")
+async def processing_status() -> dict[str, Any]:
+    """Return the current number of ingest/compile jobs in progress."""
+    return {"processing": _processing_count}
+
+
 @app.post("/ingest")
 async def ingest(req: IngestRequest) -> dict[str, Any]:
     """Ingest a URL or raw text into the knowledge base."""
+    global _processing_count
+    with _processing_lock:
+        _processing_count += 1
+    try:
+        return await _do_ingest(req)
+    finally:
+        with _processing_lock:
+            _processing_count = max(0, _processing_count - 1)
+
+
+async def _do_ingest(req: IngestRequest) -> dict[str, Any]:
+    """Internal ingest implementation."""
     source = "manual"
     title = req.title or "Untitled"
     memories_created = 0
