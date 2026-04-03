@@ -112,24 +112,6 @@ uk serve    # → http://localhost:8899
 
 ## How It Works
 
-```
-  Sources                    LLM Engine                 Knowledge Store
-  ─────────                  ──────────                 ───────────────
-
-  URLs ─────┐
-  PDFs ─────┤                ┌──────────────┐
-  Text ─────┼──▶ Ingest ──▶ │   Compile    │──▶  Wiki (.md)
-  Tweets ───┤    (embed,     │  raw → wiki  │     ├── articles/*.md
-  Images ───┤    extract)    └──────┬───────┘     ├── Index.md
-  Audio ────┘                       │             ├── [[backlinks]]
-                              ┌─────┴─────┐      └── sources
-  Web Clipper ──▶              │           │
-  CLI tools ───▶              Q&A    Linting      Outputs
-  Exa search ──▶              │           │       ├── HTML reports
-                              search   quality    ├── PDF
-                              + cite   checks     └── snapshots
-```
-
 ### Pipeline
 
 1. **Ingest** — Content is chunked, embedded (sentence-transformers or Gemini), and stored in SQLite with extracted entities and facts
