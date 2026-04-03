@@ -136,27 +136,27 @@
   }
 
   function headerHTML(showBack, showIngest) {
-    return `<header class="uk-header">
-      <div class="uk-header-inner">
+    return `<header class="uk-header" role="banner">
+      <nav class="uk-header-inner" aria-label="Main navigation">
         <div class="flex items-center gap-4">
-          ${showBack ? `<button onclick="window.location.hash=''" class="font-mono text-[10px] text-text-secondary hover:text-text tracking-[0.2em] transition-colors flex items-center gap-2"><span class="text-sm">&#8592;</span> BACK</button>` : logoHTML()}
+          ${showBack ? `<button onclick="window.location.hash=''" class="font-mono text-[10px] text-text-secondary hover:text-text tracking-[0.2em] transition-colors flex items-center gap-2" aria-label="Go back to home"><span class="text-sm" aria-hidden="true">&#8592;</span> BACK</button>` : logoHTML()}
         </div>
-        ${showIngest !== false ? `<button onclick="openIngestModal()" class="uk-ingest-btn">+ INGEST</button>` : ''}
-      </div>
+        ${showIngest !== false ? `<button onclick="openIngestModal()" class="uk-ingest-btn" aria-label="Ingest new knowledge">+ INGEST</button>` : ''}
+      </nav>
     </header>`;
   }
 
   function footerHTML() {
     const stateColor = state.stats.system_state === 'READY' ? 'var(--accent-4)' : 'var(--accent-1)';
-    return `<footer class="uk-footer">
+    return `<footer class="uk-footer" role="contentinfo">
       <div class="uk-footer-inner">
         <div class="uk-footer-stat">
           <span class="font-display italic text-[11px]" style="color:var(--text-secondary)">${state.stats.article_count.toLocaleString()}</span>
           <span>ARTICLES COMPILED</span>
         </div>
-        <div class="uk-footer-stat">
-          <span class="uk-footer-dot" style="background:${stateColor}"></span>
-          <span>${state.stats.system_state}</span>
+        <div class="uk-footer-stat" aria-live="polite">
+          <span class="uk-footer-dot" style="background:${stateColor}" aria-hidden="true"></span>
+          <span>SYSTEM ${state.stats.system_state}</span>
         </div>
       </div>
     </footer>`;
@@ -164,11 +164,12 @@
 
   function searchBarHTML(placeholder, id, scope) {
     const scopeAttr = scope ? `data-scope="${scope}"` : '';
-    return `<div class="uk-search-wrap">
+    return `<div class="uk-search-wrap" role="search">
+      <label for="${id}" class="sr-only">${placeholder}</label>
       <input type="text" id="${id}" ${scopeAttr}
         class="uk-search-input"
         placeholder="${placeholder}">
-      <div class="uk-search-hint">
+      <div class="uk-search-hint" aria-hidden="true">
         <span class="uk-search-kbd">&#8984;K</span>
         <span class="uk-search-kbd">ENTER</span>
       </div>
@@ -205,20 +206,20 @@
     const icon = CATEGORY_ICONS[index % CATEGORY_ICONS.length];
     const fillWidth = Math.min(100, 30 + Math.random() * 70);
 
-    return `<div class="topic-card topic-card-${accent} animate-fade-in-up stagger-${index + 1}" onclick="window.location.hash='#/article/${encodeURIComponent(slug)}'">
-      <span class="topic-card-number">${String(index + 1).padStart(2, '0')}</span>
+    return `<button type="button" class="topic-card topic-card-${accent} animate-fade-in-up stagger-${index + 1}" onclick="window.location.hash='#/article/${encodeURIComponent(slug)}'" aria-label="Open topic: ${escapeAttr(title)}">
+      <span class="topic-card-number" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span>
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2.5">
-          <div style="width:18px;height:18px;color:${accentHex};opacity:0.6">${icon}</div>
+          <div style="width:18px;height:18px;color:${accentHex};opacity:0.6" aria-hidden="true">${icon}</div>
           <span class="topic-card-label">TOPIC ${String(index + 1).padStart(2, '0')}</span>
         </div>
-        ${isActive ? `<span class="topic-card-tag" style="color:${accentHex}; background:${accentHex}12"><span style="width:5px;height:5px;border-radius:50%;background:${accentHex};display:inline-block"></span> LATEST</span>` : ''}
+        ${isActive ? `<span class="topic-card-tag" style="color:${accentHex}; background:${accentHex}12"><span style="width:5px;height:5px;border-radius:50%;background:${accentHex};display:inline-block" aria-hidden="true"></span> LATEST</span>` : ''}
       </div>
       <h3 class="topic-card-title">${title}</h3>
-      <div class="topic-card-bar">
+      <div class="topic-card-bar" aria-hidden="true">
         <div class="topic-card-bar-fill" style="width:${fillWidth}%; background:${accentHex}"></div>
       </div>
-    </div>`;
+    </button>`;
   }
 
   // ─── Home View ───────────────────────────────────────────────────────
@@ -240,7 +241,7 @@
 
     app().innerHTML = `
       ${headerHTML(false, true)}
-      <main class="min-h-screen flex flex-col items-center justify-center px-6 pb-20 pt-20">
+      <main id="main-content" class="min-h-screen flex flex-col items-center justify-center px-6 pb-20 pt-20">
         <div class="uk-hero text-center mb-12 animate-fade-in-up">
           <h1 class="uk-hero-title">Lexi<em class="font-display italic" style="font-style:italic">con</em></h1>
           <p class="uk-hero-subtitle">LLM-COMPILED KNOWLEDGE BASE</p>
@@ -273,7 +274,7 @@
               </div>
               <span class="font-mono text-[9px] text-text-muted tracking-[0.2em]">${state.articles.length} TOPICS${procItems.length > 0 ? ` · ${procItems.length} PROCESSING` : ''}</span>
             </div>
-            <div id="uk-card-grid" class="grid ${gridCols} gap-5">
+            <div id="uk-card-grid" class="grid ${gridCols} gap-5" aria-live="polite" role="region" aria-label="Knowledge index">
               ${cards}
             </div>
           </div>
@@ -403,18 +404,18 @@
               </div>
               <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
                 <div class="article-export-shell" id="article-export-shell" style="position:relative">
-                  <button type="button" id="article-export-btn" class="article-export-btn">
+                  <button type="button" id="article-export-btn" class="article-export-btn" aria-haspopup="true" aria-expanded="false" aria-label="Export article">
                     <span class="font-mono text-[10px] tracking-[0.2em]">EXPORT ▾</span>
                   </button>
-                  <div id="article-export-menu" class="article-export-menu hidden">
-                    <button type="button" class="article-export-option" data-export-kind="report">REPORT (MD)</button>
-                    <button type="button" class="article-export-option" data-export-kind="briefing">BRIEFING (MD)</button>
-                    <button type="button" class="article-export-option" data-export-kind="slides">SLIDES (MARP)</button>
-                    <button type="button" class="article-export-option" data-export-kind="snapshot">HTML SNAPSHOT</button>
-                    <button type="button" class="article-export-option" data-export-kind="pdf">PDF</button>
+                  <div id="article-export-menu" class="article-export-menu hidden" role="menu" aria-label="Export formats">
+                    <button type="button" class="article-export-option" role="menuitem" data-export-kind="report">REPORT (MD)</button>
+                    <button type="button" class="article-export-option" role="menuitem" data-export-kind="briefing">BRIEFING (MD)</button>
+                    <button type="button" class="article-export-option" role="menuitem" data-export-kind="slides">SLIDES (MARP)</button>
+                    <button type="button" class="article-export-option" role="menuitem" data-export-kind="snapshot">HTML SNAPSHOT</button>
+                    <button type="button" class="article-export-option" role="menuitem" data-export-kind="pdf">PDF</button>
                   </div>
                 </div>
-                <button type="button" id="article-delete-btn" class="article-delete-btn" title="Delete article">
+                <button type="button" id="article-delete-btn" class="article-delete-btn" title="Delete article" aria-label="Delete article">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 </button>
               </div>
@@ -476,10 +477,10 @@
     const menu = $('#article-export-menu');
     const deleteBtn = $('#article-delete-btn');
 
-    const closeMenu = () => { if (menu) menu.classList.add('hidden'); };
+    const closeMenu = () => { if (menu) { menu.classList.add('hidden'); if (button) button.setAttribute('aria-expanded', 'false'); } };
     const toggleMenu = (event) => {
       event.stopPropagation();
-      if (menu) menu.classList.toggle('hidden');
+      if (menu) { menu.classList.toggle('hidden'); const expanded = !menu.classList.contains('hidden'); if (button) button.setAttribute('aria-expanded', String(expanded)); }
     };
     const onDocumentClick = (event) => {
       if (shell && !shell.contains(event.target)) closeMenu();
@@ -562,7 +563,7 @@
         <div class="uk-divider my-6"></div>
         <div class="flex items-center gap-3 animate-fade-in" style="animation-delay:0.15s">
           <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-1);animation:pulseGlow 1.5s ease-in-out infinite"></div>
-          <div id="uk-ask-status" class="loading-dots font-mono text-[10px] text-text-secondary tracking-[0.2em]">SEARCHING KNOWLEDGE BASE</div>
+          <div id="uk-ask-status" class="loading-dots font-mono text-[10px] text-text-secondary tracking-[0.2em]" aria-live="polite" role="status">SEARCHING KNOWLEDGE BASE</div>
         </div>
       </main>
       ${footerHTML()}
@@ -771,30 +772,30 @@
   async function renderGraph(routeToken) {
     app().innerHTML = `
       <main class="graph-shell">
-        <header class="graph-topbar">
-          <div class="flex items-center gap-4">
-            <button onclick="window.location.hash=''" class="font-mono text-[10px] text-text-secondary hover:text-text tracking-[0.2em] transition-colors flex items-center gap-2"><span class="text-sm">&#8592;</span> BACK</button>
+        <header class="graph-topbar" role="banner">
+          <nav class="flex items-center gap-4" aria-label="Graph navigation">
+            <button onclick="window.location.hash=''" class="font-mono text-[10px] text-text-secondary hover:text-text tracking-[0.2em] transition-colors flex items-center gap-2" aria-label="Go back to home"><span class="text-sm" aria-hidden="true">&#8592;</span> BACK</button>
             <div>
               <h1 class="font-display text-lg sm:text-xl" style="letter-spacing:-0.01em">Knowledge Graph</h1>
               <p class="font-mono text-[9px] text-text-muted tracking-[0.2em] mt-0.5">MAPPING ARTICLE RELATIONSHIPS</p>
             </div>
-          </div>
-          <div class="graph-stats">
+          </nav>
+          <div class="graph-stats" aria-live="polite" role="status">
             <span class="graph-stat">LOADING NODES</span>
             <span class="graph-stat">LOADING EDGES</span>
           </div>
         </header>
-        <section class="graph-stage">
-          <div id="graph-canvas" class="graph-canvas"></div>
-          <div id="graph-tooltip" class="graph-tooltip hidden"></div>
-          <div class="graph-controls">
+        <section class="graph-stage" aria-label="Interactive knowledge graph visualization">
+          <div id="graph-canvas" class="graph-canvas" role="img" aria-label="Knowledge graph showing article relationships"></div>
+          <div id="graph-tooltip" class="graph-tooltip hidden" role="tooltip" aria-hidden="true"></div>
+          <div class="graph-controls" role="group" aria-label="Graph layout controls">
             <div>
               <label for="graph-charge" class="graph-control-label">DENSITY</label>
-              <input id="graph-charge" class="graph-slider" type="range" min="0" max="100" value="50">
+              <input id="graph-charge" class="graph-slider" type="range" min="0" max="100" value="50" aria-label="Graph density — adjust how tightly nodes cluster">
             </div>
             <div>
               <label for="graph-link-distance" class="graph-control-label">LINK DISTANCE</label>
-              <input id="graph-link-distance" class="graph-slider" type="range" min="40" max="220" value="110">
+              <input id="graph-link-distance" class="graph-slider" type="range" min="40" max="220" value="110" aria-label="Link distance — adjust spacing between connected nodes">
             </div>
           </div>
         </section>
@@ -986,6 +987,9 @@
     const modal = document.createElement('div');
     modal.id = 'ingest-modal';
     modal.className = 'fixed inset-0 z-[100] flex items-center justify-center';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Ingest knowledge');
     modal.innerHTML = `
       <div class="absolute inset-0 bg-text/30 backdrop-blur-sm animate-fade-in" onclick="closeIngestModal()"></div>
       <div class="relative bg-bg border border-border rounded-2xl w-full max-w-lg mx-4 p-7 max-h-[80vh] overflow-y-auto animate-scale-in" style="box-shadow: 0 24px 64px rgba(26,23,20,0.12)">
@@ -994,10 +998,11 @@
             <span class="font-mono text-[9px] tracking-[0.22em] text-text-muted block mb-1">NEW ENTRY</span>
             <span class="font-display text-lg">Ingest Knowledge</span>
           </div>
-          <button onclick="closeIngestModal()" class="text-text-muted hover:text-text text-xl leading-none transition-colors w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg-warm">&times;</button>
+          <button onclick="closeIngestModal()" class="text-text-muted hover:text-text text-xl leading-none transition-colors w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg-warm" aria-label="Close modal">&times;</button>
         </div>
 
         <div class="space-y-4">
+          <label for="ingest-url" class="sr-only">URL to ingest</label>
           <input type="text" id="ingest-url" placeholder="Paste a URL\u2026"
             class="uk-search-input" style="font-size:0.9375rem;padding:0.85rem 1.15rem">
 
@@ -1007,6 +1012,7 @@
             <div class="uk-divider flex-1"></div>
           </div>
 
+          <label for="ingest-text" class="sr-only">Text content to ingest</label>
           <textarea id="ingest-text" rows="4" placeholder="Paste text content\u2026"
             class="uk-search-input resize-y" style="font-size:0.9375rem;padding:0.85rem 1.15rem;border-radius:12px"></textarea>
 
@@ -1016,12 +1022,13 @@
             <div class="uk-divider flex-1"></div>
           </div>
 
-          <div id="media-upload-area" style="border:1.5px dashed var(--border-subtle);border-radius:12px;padding:1.1rem;text-align:center;cursor:pointer;transition:border-color 0.15s"
+          <div id="media-upload-area" role="button" tabindex="0" aria-label="Upload media file — image, audio, or video" style="border:1.5px dashed var(--border-subtle);border-radius:12px;padding:1.1rem;text-align:center;cursor:pointer;transition:border-color 0.15s"
             onclick="document.getElementById('ingest-file').click()"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('ingest-file').click()}"
             ondragover="event.preventDefault();this.style.borderColor='var(--accent-1)'"
             ondragleave="this.style.borderColor='var(--border-subtle)'"
             ondrop="event.preventDefault();this.style.borderColor='var(--border-subtle)';handleFileDrop(event)">
-            <input type="file" id="ingest-file" accept="image/png,image/jpeg,audio/mpeg,audio/wav,video/mp4,video/quicktime" style="display:none" onchange="handleFileSelect(this)">
+            <input type="file" id="ingest-file" accept="image/png,image/jpeg,audio/mpeg,audio/wav,video/mp4,video/quicktime" style="display:none" onchange="handleFileSelect(this)" aria-hidden="true">
             <div class="font-mono text-[10px] text-text-muted tracking-[0.15em]">
               <span style="font-size:1.3rem;display:block;margin-bottom:0.4rem;opacity:0.5">\u2B06</span>
               DROP OR CLICK \u2014 IMAGE \u00B7 AUDIO \u00B7 VIDEO
@@ -1043,6 +1050,7 @@
             <span class="font-mono text-[9px] text-text-muted" id="media-progress-text">Uploading\u2026</span>
           </div>
 
+          <label for="ingest-title" class="sr-only">Title (optional)</label>
           <input type="text" id="ingest-title" placeholder="Title (optional)"
             class="uk-search-input" style="font-size:0.9375rem;padding:0.85rem 1.15rem">
 
@@ -1065,7 +1073,7 @@
 
         <div class="mt-7 pt-5" style="border-top: 1px solid var(--border-subtle)">
           <span class="font-mono text-[9px] text-text-muted tracking-[0.22em] block mb-3">RECENT INGESTION</span>
-          <div id="ingestion-feed" class="space-y-2">
+          <div id="ingestion-feed" class="space-y-2" aria-live="polite" role="log">
             ${state.ingestions.length === 0
               ? '<p class="font-mono text-[10px] text-text-muted" style="opacity:0.5">No recent ingestions</p>'
               : state.ingestions.map(ingestionItemHTML).join('')}
@@ -1303,25 +1311,57 @@
     // Show inline confirmation overlay instead of native confirm()
     const overlay = document.createElement('div');
     overlay.className = 'uk-confirm-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Delete article confirmation');
     overlay.innerHTML = `
       <div class="uk-confirm-card">
-        <p style="margin:0 0 4px;font-family:var(--font-display);font-size:1.1rem;color:var(--text-primary)">Delete article?</p>
-        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted)">"${escapeHTML(slug.replace(/-/g, ' '))}" will be permanently removed.</p>
+        <p style="margin:0 0 4px;font-family:var(--font-display);font-size:1.1rem;color:var(--text-primary)" id="confirm-title">Delete article?</p>
+        <p style="margin:0 0 16px;font-size:0.85rem;color:var(--text-muted)" id="confirm-desc">"${escapeHTML(slug.replace(/-/g, ' '))}" will be permanently removed.</p>
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <button type="button" class="uk-confirm-cancel">Cancel</button>
           <button type="button" class="uk-confirm-delete">Delete</button>
         </div>
       </div>
     `;
+    overlay.setAttribute('aria-labelledby', 'confirm-title');
+    overlay.setAttribute('aria-describedby', 'confirm-desc');
     document.body.appendChild(overlay);
-    // Small delay so the overlay can paint before we attach listeners
-    requestAnimationFrame(() => overlay.style.opacity = '1');
 
-    overlay.querySelector('.uk-confirm-cancel').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    // Focus the cancel button and trap focus within the modal
+    const cancelBtn = overlay.querySelector('.uk-confirm-cancel');
+    const deleteBtn2 = overlay.querySelector('.uk-confirm-delete');
+    const focusableEls = [cancelBtn, deleteBtn2];
+    const previouslyFocused = document.activeElement;
 
-    overlay.querySelector('.uk-confirm-delete').addEventListener('click', async () => {
+    const trapFocus = (e) => {
+      if (e.key === 'Tab') {
+        const first = focusableEls[0];
+        const last = focusableEls[focusableEls.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+        } else {
+          if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      }
+      if (e.key === 'Escape') { removeOverlay(); }
+    };
+
+    const removeOverlay = () => {
+      overlay.removeEventListener('keydown', trapFocus);
       overlay.remove();
+      if (previouslyFocused) previouslyFocused.focus();
+    };
+
+    overlay.addEventListener('keydown', trapFocus);
+    // Small delay so the overlay can paint before we attach listeners
+    requestAnimationFrame(() => { overlay.style.opacity = '1'; cancelBtn.focus(); });
+
+    cancelBtn.addEventListener('click', removeOverlay);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) removeOverlay(); });
+
+    deleteBtn2.addEventListener('click', async () => {
+      removeOverlay();
       try {
         const res = await fetch(`/api/articles/${encodeURIComponent(slug)}`, { method: 'DELETE' });
         if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || res.statusText); }
@@ -1336,6 +1376,8 @@
   function showToast(msg) {
     const toast = document.createElement('div');
     toast.className = 'uk-toast';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
     toast.textContent = msg;
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2500);

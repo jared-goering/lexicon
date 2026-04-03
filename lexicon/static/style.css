@@ -21,6 +21,81 @@
 * { box-sizing: border-box; }
 ::selection { background: rgba(46, 125, 201, 0.18); }
 
+/* ─── Screen-reader only utility ───────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ─── Focus-visible styles ─────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove default outline for non-keyboard focus */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Specific focus styles for elements with existing borders */
+.uk-search-input:focus-visible {
+  outline: none;
+  border-color: rgba(46, 125, 201, 0.4);
+  box-shadow:
+    0 1px 2px rgba(26, 23, 20, 0.04),
+    0 8px 24px rgba(26, 23, 20, 0.03),
+    0 0 0 3px rgba(46, 125, 201, 0.08);
+}
+
+.topic-card:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(26, 23, 20, 0.07);
+}
+
+.uk-ingest-btn:focus-visible {
+  outline: 2px solid var(--accent-1);
+  outline-offset: 2px;
+}
+
+.article-export-btn:focus-visible,
+.article-delete-btn:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.article-export-option:focus-visible {
+  outline: none;
+  background: rgba(46, 125, 201, 0.06);
+  color: var(--accent-2);
+}
+
+.graph-launch-btn:focus-visible {
+  outline: 2px solid var(--accent-1);
+  outline-offset: 2px;
+}
+
+.graph-slider:focus-visible {
+  outline: 2px solid var(--accent-1);
+  outline-offset: 4px;
+}
+
+.uk-confirm-cancel:focus-visible,
+.uk-confirm-delete:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
 /* ─── z-index hierarchy ─────────────────────────────────────── */
 /* ingest-modal: 100 | uk-toast: 200 | uk-confirm-overlay: 300 | grain-overlay: 9999 (pointer-events:none) */
 
@@ -236,6 +311,13 @@
   cursor: pointer;
   overflow: hidden;
   transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  /* Button reset — topic cards are now <button> elements */
+  font: inherit;
+  text-align: left;
+  width: 100%;
+  color: inherit;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .topic-card::before {
