@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from lexicon import __version__
 from lexicon.compiler import WikiCompiler
 from lexicon.config import get_settings
+from lexicon.connectors.bookmarks import BookmarksConnector
 from lexicon.connectors.url import URLConnector
 from lexicon.export import Exporter
 from lexicon.linker import AutoLinker
@@ -34,7 +35,6 @@ from lexicon.linter import KBLinter
 from lexicon.qa import QAAgent
 from lexicon.research import ResearchAgent
 from lexicon.ultramemory_client import UltramemoryClient
-from lexicon.connectors.bookmarks import BookmarksConnector
 from lexicon.utils import safe_slug
 
 

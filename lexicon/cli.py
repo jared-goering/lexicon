@@ -450,7 +450,6 @@ def ingest_bookmarks(do_sync: bool, categories: str | None, dry_run: bool):
 
     if dry_run:
         for i, bm in enumerate(new_bookmarks[:20], 1):
-            author = bm.author_name or bm.author_handle or "Unknown"
             cat = f" [{bm.primary_category}]" if bm.primary_category else ""
             click.echo(f"  {i}. @{bm.author_handle or '?'}: {bm.text[:80]}{cat}")
         if len(new_bookmarks) > 20:

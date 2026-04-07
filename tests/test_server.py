@@ -162,8 +162,15 @@ class TestAuth:
         # Should not be 401 — may be 400/422/500 depending on mocks, but auth passed
         assert resp.status_code != 401
 
-    def test_read_endpoints_work_without_token(self, authed_client):
-        """Read endpoints should work even when LEXICON_API_TOKEN is set."""
+    def test_read_endpoints_require_auth_when_token_set(self, authed_client):
+        """Read endpoints should require auth when LEXICON_API_TOKEN is set."""
         for path in ["/api/topics", "/api/stats", "/api/processing", "/api/graph"]:
             resp = authed_client.get(path)
+            assert resp.status_code in (401, 302), f"{path} returned {resp.status_code}"
+
+    def test_read_endpoints_work_with_token(self, authed_client):
+        """Read endpoints should work when valid bearer token is provided."""
+        headers = {"Authorization": "Bearer test-secret-token"}
+        for path in ["/api/topics", "/api/stats", "/api/processing", "/api/graph"]:
+            resp = authed_client.get(path, headers=headers)
             assert resp.status_code == 200, f"{path} returned {resp.status_code}"
