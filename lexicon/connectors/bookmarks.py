@@ -103,15 +103,11 @@ class BookmarksConnector:
         finally:
             conn.close()
 
-    def get_new_bookmarks(
-        self, categories: list[str] | None = None
-    ) -> list[Bookmark]:
+    def get_new_bookmarks(self, categories: list[str] | None = None) -> list[Bookmark]:
         """Return bookmarks not yet ingested, optionally filtered by category."""
         conn = self._open_db()
         try:
-            rows = conn.execute(
-                "SELECT * FROM bookmarks ORDER BY bookmarked_at DESC"
-            ).fetchall()
+            rows = conn.execute("SELECT * FROM bookmarks ORDER BY bookmarked_at DESC").fetchall()
         finally:
             conn.close()
 
@@ -195,9 +191,7 @@ class BookmarksConnector:
             },
         }
 
-    def ingest_new_bookmarks(
-        self, categories: list[str] | None = None
-    ) -> list[dict[str, Any]]:
+    def ingest_new_bookmarks(self, categories: list[str] | None = None) -> list[dict[str, Any]]:
         """Get new bookmarks and return chunks ready for Ultramemory ingestion."""
         bookmarks = self.get_new_bookmarks(categories=categories)
         chunks: list[dict[str, Any]] = []

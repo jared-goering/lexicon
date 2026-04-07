@@ -49,39 +49,93 @@ def tmp_ft_db(tmp_path: Path) -> Path:
         domains TEXT,
         primary_domain TEXT
     )""")
-    conn.execute("""INSERT INTO bookmarks
+    conn.execute(
+        """INSERT INTO bookmarks
         (id, tweet_id, url, text, author_handle, author_name, posted_at,
          bookmarked_at, synced_at, like_count, repost_count, reply_count,
          quote_count, view_count, categories, primary_category, domains,
          primary_domain, links_json)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        ("bm_1", "111", "https://x.com/alice/status/111",
-         "Great thread on distributed systems", "alice", "Alice Smith",
-         "2026-04-01T10:00:00Z", "2026-04-01T12:00:00Z", "2026-04-06T00:00:00Z",
-         150, 30, 5, 10, 50000, "research,technique", "research",
-         "engineering", "engineering", '["https://example.com/paper"]'))
-    conn.execute("""INSERT INTO bookmarks
+        (
+            "bm_1",
+            "111",
+            "https://x.com/alice/status/111",
+            "Great thread on distributed systems",
+            "alice",
+            "Alice Smith",
+            "2026-04-01T10:00:00Z",
+            "2026-04-01T12:00:00Z",
+            "2026-04-06T00:00:00Z",
+            150,
+            30,
+            5,
+            10,
+            50000,
+            "research,technique",
+            "research",
+            "engineering",
+            "engineering",
+            '["https://example.com/paper"]',
+        ),
+    )
+    conn.execute(
+        """INSERT INTO bookmarks
         (id, tweet_id, url, text, author_handle, author_name, posted_at,
          bookmarked_at, synced_at, like_count, repost_count, reply_count,
          quote_count, view_count, categories, primary_category, domains,
          primary_domain, links_json)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        ("bm_2", "222", "https://x.com/bob/status/222",
-         "Just shipped our new CLI tool", "bob", "Bob Jones",
-         "2026-04-02T15:00:00Z", "2026-04-02T16:00:00Z", "2026-04-06T00:00:00Z",
-         500, 100, 20, 50, 200000, "launch,tool", "launch",
-         "devtools", "devtools", None))
-    conn.execute("""INSERT INTO bookmarks
+        (
+            "bm_2",
+            "222",
+            "https://x.com/bob/status/222",
+            "Just shipped our new CLI tool",
+            "bob",
+            "Bob Jones",
+            "2026-04-02T15:00:00Z",
+            "2026-04-02T16:00:00Z",
+            "2026-04-06T00:00:00Z",
+            500,
+            100,
+            20,
+            50,
+            200000,
+            "launch,tool",
+            "launch",
+            "devtools",
+            "devtools",
+            None,
+        ),
+    )
+    conn.execute(
+        """INSERT INTO bookmarks
         (id, tweet_id, url, text, author_handle, author_name, posted_at,
          bookmarked_at, synced_at, like_count, repost_count, reply_count,
          quote_count, view_count, categories, primary_category, domains,
          primary_domain, links_json)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        ("bm_3", "333", "https://x.com/carol/status/333",
-         "New paper on attention mechanisms in transformers", "carol", "Carol Lee",
-         "2026-04-03T09:00:00Z", "2026-04-03T10:00:00Z", "2026-04-06T00:00:00Z",
-         80, 20, 3, 5, 30000, "research", "research",
-         "ml", "ml", None))
+        (
+            "bm_3",
+            "333",
+            "https://x.com/carol/status/333",
+            "New paper on attention mechanisms in transformers",
+            "carol",
+            "Carol Lee",
+            "2026-04-03T09:00:00Z",
+            "2026-04-03T10:00:00Z",
+            "2026-04-06T00:00:00Z",
+            80,
+            20,
+            3,
+            5,
+            30000,
+            "research",
+            "research",
+            "ml",
+            "ml",
+            None,
+        ),
+    )
     conn.commit()
     conn.close()
     return db_path
@@ -223,9 +277,7 @@ class TestAsyncIngestion:
         mock_linker.generate_backlinks = MagicMock()
         mock_linker.rebuild_index = MagicMock()
 
-        result = await connector.async_ingest_new_bookmarks(
-            mock_client, mock_compiler, mock_linker
-        )
+        result = await connector.async_ingest_new_bookmarks(mock_client, mock_compiler, mock_linker)
 
         assert result["ingested"] == 3
         assert result["memories_created"] == 6  # 2 per bookmark * 3

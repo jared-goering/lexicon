@@ -167,9 +167,7 @@ async def global_auth_middleware(request: Request, call_next):
 
     # Check session cookie (browser users)
     session = request.cookies.get(_SESSION_COOKIE, "")
-    if session and secrets.compare_digest(
-        session, hashlib.sha256(token.encode()).hexdigest()
-    ):
+    if session and secrets.compare_digest(session, hashlib.sha256(token.encode()).hexdigest()):
         return await call_next(request)
 
     # Not authenticated: redirect browsers to login, return 401 for API
@@ -286,7 +284,8 @@ async def login_submit(request: Request) -> RedirectResponse:
     provided = (form.get("token") or "").strip()
     token = settings.api_token or ""
     if not provided or not secrets.compare_digest(token, provided):
-        return HTMLResponse("""<!DOCTYPE html>
+        return HTMLResponse(
+            """<!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lexicon - Login</title>
@@ -312,7 +311,9 @@ async def login_submit(request: Request) -> RedirectResponse:
     <input type="password" name="token" placeholder="API token" autofocus required>
     <button type="submit">Sign in</button>
   </form>
-</div></body></html>""", status_code=401)
+</div></body></html>""",
+            status_code=401,
+        )
     session_value = hashlib.sha256(token.encode()).hexdigest()
     response = RedirectResponse(url="/", status_code=302)
     response.set_cookie(
