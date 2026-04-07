@@ -141,7 +141,13 @@
         <div class="flex items-center gap-4">
           ${showBack ? `<button onclick="window.location.hash=''" class="font-mono text-[10px] text-text-secondary hover:text-text tracking-[0.2em] transition-colors flex items-center gap-2" aria-label="Go back to home"><span class="text-sm" aria-hidden="true">&#8592;</span> BACK</button>` : logoHTML()}
         </div>
-        ${showIngest !== false ? `<button onclick="openIngestModal()" class="uk-ingest-btn" aria-label="Ingest new knowledge">+ INGEST</button>` : ''}
+        <div class="flex items-center gap-3">
+          <button onclick="openBookmarksPanel()" class="uk-bookmarks-btn" aria-label="X/Twitter Bookmarks">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h3l2 13h10l3-8H6"/><circle cx="10" cy="21" r="1"/><circle cx="19" cy="21" r="1"/></svg>
+            <span class="font-mono text-[10px] tracking-[0.15em]">BOOKMARKS</span>
+          </button>
+          ${showIngest !== false ? `<button onclick="openIngestModal()" class="uk-ingest-btn" aria-label="Ingest new knowledge">+ INGEST</button>` : ''}
+        </div>
       </nav>
     </header>`;
   }
@@ -1438,6 +1444,164 @@
     tooltip.style.transform = `translate(${pointer.x + 18}px, ${pointer.y + 18}px)`;
     tooltip.classList.remove('hidden');
   }
+
+  // ─── Bookmarks Panel ─────────────────────────────────────────────────
+  window.openBookmarksPanel = async function () {
+    const existing = $('#bookmarks-panel');
+    if (existing) { existing.remove(); return; }
+
+    const panel = document.createElement('div');
+    panel.id = 'bookmarks-panel';
+    panel.className = 'fixed inset-0 z-[100] flex items-center justify-center';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-label', 'X/Twitter Bookmarks');
+    panel.innerHTML = `
+      <div class="absolute inset-0 bg-text/30 backdrop-blur-sm animate-fade-in" onclick="closeBookmarksPanel()"></div>
+      <div class="relative bg-bg border border-border rounded-2xl w-full max-w-lg mx-4 p-7 max-h-[80vh] overflow-y-auto animate-scale-in" style="box-shadow: 0 24px 64px rgba(26,23,20,0.12)">
+        <div class="flex items-center justify-between mb-7">
+          <div>
+            <span class="font-mono text-[9px] tracking-[0.22em] text-text-muted block mb-1">FIELD THEORY</span>
+            <span class="font-display text-lg">X/Twitter Bookmarks</span>
+          </div>
+          <button onclick="closeBookmarksPanel()" class="text-text-muted hover:text-text text-xl leading-none transition-colors w-8 h-8 flex items-center justify-center rounded-lg hover:bg-bg-warm" aria-label="Close panel">&times;</button>
+        </div>
+
+        <div id="bookmarks-status" class="mb-6">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="loading-dots font-mono text-[10px] text-text-muted tracking-widest">LOADING STATUS</div>
+          </div>
+        </div>
+
+        <div class="mb-5">
+          <span class="font-mono text-[9px] text-text-muted tracking-[0.22em] block mb-3">CATEGORY FILTER</span>
+          <div id="bookmarks-categories" class="flex flex-wrap gap-2 mb-4">
+            <span class="font-mono text-[10px] text-text-muted">Loading...</span>
+          </div>
+        </div>
+
+        <div class="flex gap-3 mb-6">
+          <button onclick="syncBookmarks(false)" id="bookmarks-ingest-btn"
+            class="font-mono text-[10px] tracking-[0.2em] bg-text text-bg px-5 py-2.5 rounded-lg hover:opacity-90 transition-opacity">
+            INGEST NEW
+          </button>
+          <button onclick="syncBookmarks(true)" id="bookmarks-sync-btn"
+            class="uk-ingest-btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline-block;vertical-align:-1px;margin-right:4px"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+            SYNC &amp; INGEST
+          </button>
+        </div>
+
+        <div id="bookmarks-feed" class="space-y-2" aria-live="polite" role="log">
+        </div>
+      </div>
+    `;
+    document.body.appendChild(panel);
+    loadBookmarksStatus();
+  };
+
+  window.closeBookmarksPanel = function () {
+    const panel = $('#bookmarks-panel');
+    if (panel) panel.remove();
+  };
+
+  async function loadBookmarksStatus() {
+    try {
+      const status = await api('GET', '/api/bookmarks/status');
+      const statusEl = $('#bookmarks-status');
+      if (!statusEl) return;
+
+      const lastSync = status.last_sync
+        ? new Date(status.last_sync).toLocaleString()
+        : 'Never';
+      const dbStatus = status.db_exists
+        ? `<span style="color:var(--accent-4)">&#9679;</span> Connected`
+        : `<span style="color:#c0392b">&#9679;</span> DB not found`;
+
+      statusEl.innerHTML = `
+        <div class="grid gap-3" style="grid-template-columns:1fr 1fr">
+          <div class="p-3 rounded-xl border border-border-subtle" style="background:var(--surface-raised)">
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.22em] block mb-1">TOTAL INGESTED</span>
+            <span class="font-display text-xl">${status.total_ingested}</span>
+          </div>
+          <div class="p-3 rounded-xl border border-border-subtle" style="background:var(--surface-raised)">
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.22em] block mb-1">PENDING</span>
+            <span class="font-display text-xl" style="color:${status.pending > 0 ? 'var(--accent-1)' : 'var(--text-primary)'}">${status.pending}</span>
+          </div>
+          <div class="p-3 rounded-xl border border-border-subtle" style="background:var(--surface-raised)">
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.22em] block mb-1">IN DATABASE</span>
+            <span class="font-display text-xl">${status.total_in_db}</span>
+          </div>
+          <div class="p-3 rounded-xl border border-border-subtle" style="background:var(--surface-raised)">
+            <span class="font-mono text-[9px] text-text-muted tracking-[0.22em] block mb-1">LAST SYNC</span>
+            <span class="font-mono text-[10px]">${lastSync}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 mt-3 font-mono text-[10px] text-text-muted">
+          ${dbStatus}
+          <span style="opacity:0.3">&middot;</span>
+          <span style="opacity:0.6" title="${escapeAttr(status.db_path)}">${escapeHTML(status.db_path)}</span>
+        </div>
+      `;
+    } catch (err) {
+      const statusEl = $('#bookmarks-status');
+      if (statusEl) statusEl.innerHTML = `<p class="font-mono text-[10px] text-text-muted">Failed to load status: ${escapeHTML(err.message)}</p>`;
+    }
+  }
+
+  let _bookmarkCategories = [];
+
+  window.toggleBookmarkCategory = function (btn) {
+    btn.classList.toggle('active');
+    const cat = btn.dataset.category;
+    if (btn.classList.contains('active')) {
+      if (!_bookmarkCategories.includes(cat)) _bookmarkCategories.push(cat);
+    } else {
+      _bookmarkCategories = _bookmarkCategories.filter(c => c !== cat);
+    }
+  };
+
+  window.syncBookmarks = async function (doSync) {
+    const ingestBtn = $('#bookmarks-ingest-btn');
+    const syncBtn = $('#bookmarks-sync-btn');
+    const feed = $('#bookmarks-feed');
+
+    if (ingestBtn) { ingestBtn.disabled = true; ingestBtn.textContent = doSync ? 'SYNCING...' : 'INGESTING...'; }
+    if (syncBtn) { syncBtn.disabled = true; }
+
+    const body = { sync: doSync };
+    if (_bookmarkCategories.length > 0) body.categories = _bookmarkCategories;
+
+    if (feed) feed.innerHTML = `<div class="flex items-center gap-2 font-mono text-[10px] text-text-secondary">
+      <div style="width:6px;height:6px;border-radius:50%;background:var(--accent-1);animation:pulseGlow 1.5s ease-in-out infinite"></div>
+      ${doSync ? 'Running ft sync and ingesting...' : 'Ingesting new bookmarks...'}
+    </div>`;
+
+    try {
+      const result = await api('POST', '/api/ingest-bookmarks', body);
+      if (feed) {
+        if (result.ingested === 0) {
+          feed.innerHTML = '<p class="font-mono text-[10px] text-text-muted">No new bookmarks to ingest.</p>';
+        } else {
+          feed.innerHTML = `
+            <div class="flex items-center gap-2 font-mono text-[10px] text-accent-4">
+              <span>&#10003;</span>
+              <span>Ingested ${result.ingested} bookmarks (${result.memories_created} memories)</span>
+            </div>
+            ${result.articles.length > 0 ? `<div class="font-mono text-[10px] text-text-muted mt-1">Compiled ${result.articles.length} articles</div>` : ''}
+          `;
+        }
+      }
+      loadBookmarksStatus();
+    } catch (err) {
+      if (feed) feed.innerHTML = `<div class="flex items-center gap-2 font-mono text-[10px] text-red-500">
+        <span>&#10007;</span> ${escapeHTML(err.message)}
+      </div>`;
+    } finally {
+      if (ingestBtn) { ingestBtn.disabled = false; ingestBtn.textContent = 'INGEST NEW'; }
+      if (syncBtn) { syncBtn.disabled = false; }
+    }
+  };
 
   // ─── Init ────────────────────────────────────────────────────────────
   router();

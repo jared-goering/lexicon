@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import glob as globmod
+import hashlib
 import logging
 import mimetypes
 import os
@@ -19,7 +20,7 @@ from typing import Any
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -33,6 +34,7 @@ from lexicon.linter import KBLinter
 from lexicon.qa import QAAgent
 from lexicon.research import ResearchAgent
 from lexicon.ultramemory_client import UltramemoryClient
+from lexicon.connectors.bookmarks import BookmarksConnector
 from lexicon.utils import safe_slug
 
 
@@ -134,6 +136,50 @@ async def require_auth(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Invalid or missing API token")
 
 
+# --- Cookie-based session auth for browser access ---
+
+_SESSION_COOKIE = "lexicon_session"
+_LOGIN_PATH = "/login"
+
+
+@app.middleware("http")
+async def global_auth_middleware(request: Request, call_next):
+    """When LEXICON_API_TOKEN is set, require auth on all routes.
+    Browser users authenticate once via /login and get a session cookie.
+    API users can still use Bearer token in the header.
+    """
+    token = settings.api_token
+    if not token:
+        return await call_next(request)
+
+    path = request.url.path
+
+    # Always allow the login page and health check
+    if path in (_LOGIN_PATH, "/api/health"):
+        return await call_next(request)
+
+    # Check bearer token (API clients)
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("bearer "):
+        provided = auth[7:].strip()
+        if secrets.compare_digest(token, provided):
+            return await call_next(request)
+
+    # Check session cookie (browser users)
+    session = request.cookies.get(_SESSION_COOKIE, "")
+    if session and secrets.compare_digest(
+        session, hashlib.sha256(token.encode()).hexdigest()
+    ):
+        return await call_next(request)
+
+    # Not authenticated: redirect browsers to login, return 401 for API
+    if "text/html" in request.headers.get("accept", ""):
+        from starlette.responses import RedirectResponse
+
+        return RedirectResponse(url=_LOGIN_PATH, status_code=302)
+    return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+
+
 um_client = UltramemoryClient(settings)
 compiler = WikiCompiler(settings, client=um_client)
 linker = AutoLinker(settings)
@@ -187,8 +233,97 @@ class ExportRequest(BaseModel):
     format: str = "report"  # "slides", "report", "briefing", "html", "pdf"
 
 
+class IngestBookmarksRequest(BaseModel):
+    sync: bool = False
+    categories: list[str] | None = None
+
+
 class SnapshotRequest(BaseModel):
     slug: str
+
+
+# --- Login ---
+
+
+@app.get(_LOGIN_PATH, response_class=HTMLResponse)
+async def login_page() -> HTMLResponse:
+    """Simple login form for browser access."""
+    return HTMLResponse("""<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lexicon - Login</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,system-ui,sans-serif;background:#F0EDE7;
+       display:flex;align-items:center;justify-content:center;min-height:100vh}
+  .card{background:#FAF8F4;border-radius:12px;padding:2.5rem;
+        box-shadow:0 2px 12px rgba(0,0,0,0.08);max-width:360px;width:100%}
+  h1{font-size:1.5rem;margin-bottom:1.5rem;color:#1A1714;text-align:center}
+  input{width:100%;padding:0.75rem 1rem;border:1px solid #d4d0c8;border-radius:8px;
+        font-size:1rem;margin-bottom:1rem;background:#fff}
+  input:focus{outline:none;border-color:#6B3AE8}
+  button{width:100%;padding:0.75rem;background:#1A1714;color:#FAF8F4;border:none;
+         border-radius:8px;font-size:1rem;cursor:pointer}
+  button:hover{background:#333}
+  .error{color:#c0392b;font-size:0.875rem;margin-bottom:1rem;text-align:center;display:none}
+</style></head>
+<body><div class="card">
+  <h1>Lexicon</h1>
+  <div class="error" id="err">Invalid token</div>
+  <form method="POST" action="/login">
+    <input type="password" name="token" placeholder="API token" autofocus required>
+    <button type="submit">Sign in</button>
+  </form>
+</div></body></html>""")
+
+
+@app.post(_LOGIN_PATH)
+async def login_submit(request: Request) -> RedirectResponse:
+    """Validate token and set session cookie."""
+    from starlette.responses import RedirectResponse
+
+    form = await request.form()
+    provided = (form.get("token") or "").strip()
+    token = settings.api_token or ""
+    if not provided or not secrets.compare_digest(token, provided):
+        return HTMLResponse("""<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lexicon - Login</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,system-ui,sans-serif;background:#F0EDE7;
+       display:flex;align-items:center;justify-content:center;min-height:100vh}
+  .card{background:#FAF8F4;border-radius:12px;padding:2.5rem;
+        box-shadow:0 2px 12px rgba(0,0,0,0.08);max-width:360px;width:100%}
+  h1{font-size:1.5rem;margin-bottom:1.5rem;color:#1A1714;text-align:center}
+  input{width:100%;padding:0.75rem 1rem;border:1px solid #d4d0c8;border-radius:8px;
+        font-size:1rem;margin-bottom:1rem;background:#fff}
+  input:focus{outline:none;border-color:#6B3AE8}
+  button{width:100%;padding:0.75rem;background:#1A1714;color:#FAF8F4;border:none;
+         border-radius:8px;font-size:1rem;cursor:pointer}
+  button:hover{background:#333}
+  .error{color:#c0392b;font-size:0.875rem;margin-bottom:1rem;text-align:center}
+</style></head>
+<body><div class="card">
+  <h1>Lexicon</h1>
+  <div class="error">Invalid token. Try again.</div>
+  <form method="POST" action="/login">
+    <input type="password" name="token" placeholder="API token" autofocus required>
+    <button type="submit">Sign in</button>
+  </form>
+</div></body></html>""", status_code=401)
+    session_value = hashlib.sha256(token.encode()).hexdigest()
+    response = RedirectResponse(url="/", status_code=302)
+    response.set_cookie(
+        _SESSION_COOKIE,
+        session_value,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30,  # 30 days
+    )
+    return response
 
 
 # --- Routes ---
@@ -732,6 +867,51 @@ async def export_all_articles() -> FileResponse:
         media_type="text/html",
         filename=result.output_path.name,
     )
+
+
+@app.post("/api/ingest-bookmarks", dependencies=[Depends(require_auth)])
+async def ingest_bookmarks(req: IngestBookmarksRequest) -> dict[str, Any]:
+    """Ingest X/Twitter bookmarks from Field Theory into the knowledge base."""
+    global _processing_count, _last_compiled_at
+
+    connector = BookmarksConnector(settings)
+
+    if req.sync:
+        try:
+            connector.run_ft_sync()
+        except (RuntimeError, FileNotFoundError) as exc:
+            raise HTTPException(status_code=502, detail=f"ft sync failed: {exc}")
+
+    item = {"source": "bookmarks", "title": "X/Twitter bookmarks"}
+    with _processing_lock:
+        _processing_count += 1
+        _processing_items.append(item)
+    try:
+        result = await connector.async_ingest_new_bookmarks(
+            um_client, compiler, linker, categories=req.categories
+        )
+        if result["articles"]:
+            _last_compiled_at = time.time()
+        return {
+            "status": "ingested",
+            "ingested": result["ingested"],
+            "memories_created": result["memories_created"],
+            "articles": result["articles"],
+        }
+    finally:
+        with _processing_lock:
+            _processing_count = max(0, _processing_count - 1)
+            try:
+                _processing_items.remove(item)
+            except ValueError:
+                pass
+
+
+@app.get("/api/bookmarks/status")
+async def bookmarks_status() -> dict[str, Any]:
+    """Return bookmarks sync status: last sync, total synced, pending count."""
+    connector = BookmarksConnector(settings)
+    return connector.get_status()
 
 
 def _build_graph_cluster_labels(articles: dict[str, Any]) -> list[str]:

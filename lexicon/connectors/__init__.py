@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-__all__ = ["ExaConnector", "FileConnector", "RSSConnector", "URLConnector"]
+__all__ = ["BookmarksConnector", "ExaConnector", "FileConnector", "RSSConnector", "URLConnector"]
 
 
 def __getattr__(name: str):
+    if name == "BookmarksConnector":
+        from lexicon.connectors.bookmarks import BookmarksConnector
+
+        return BookmarksConnector
     if name == "FileConnector":
         from lexicon.connectors.files import FileConnector
 

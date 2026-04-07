@@ -402,5 +402,83 @@ def watch(topic: str | None, interval: int, list_watches: bool, stop_topic: str 
         click.echo("\nStopped watching.")
 
 
+@cli.command("ingest-bookmarks")
+@click.option("--sync", "do_sync", is_flag=True, help="Run 'ft sync' before ingesting")
+@click.option(
+    "--categories",
+    "-c",
+    default=None,
+    help="Comma-separated category filter (e.g. research,technique)",
+)
+@click.option("--dry-run", is_flag=True, help="Show what would be ingested without ingesting")
+def ingest_bookmarks(do_sync: bool, categories: str | None, dry_run: bool):
+    """Ingest X/Twitter bookmarks from Field Theory into the knowledge base.
+
+    Reads bookmarks from the local Field Theory SQLite database
+    (~/.ft-bookmarks/bookmarks.db) and ingests new ones into Ultramemory.
+
+    Examples:
+
+        uk ingest-bookmarks
+
+        uk ingest-bookmarks --sync --categories research,technique
+
+        uk ingest-bookmarks --dry-run
+    """
+    from lexicon.connectors.bookmarks import BookmarksConnector
+
+    settings = get_settings()
+    connector = BookmarksConnector(settings)
+
+    if do_sync:
+        click.echo("Running ft sync...")
+        try:
+            output = connector.run_ft_sync()
+            if output:
+                click.echo(f"  {output}")
+        except (RuntimeError, FileNotFoundError) as exc:
+            click.echo(f"  Warning: {exc}", err=True)
+
+    cat_list = [c.strip() for c in categories.split(",")] if categories else None
+
+    new_bookmarks = connector.get_new_bookmarks(categories=cat_list)
+    if not new_bookmarks:
+        click.echo("No new bookmarks to ingest.")
+        return
+
+    click.echo(f"Found {len(new_bookmarks)} new bookmarks")
+
+    if dry_run:
+        for i, bm in enumerate(new_bookmarks[:20], 1):
+            author = bm.author_name or bm.author_handle or "Unknown"
+            cat = f" [{bm.primary_category}]" if bm.primary_category else ""
+            click.echo(f"  {i}. @{bm.author_handle or '?'}: {bm.text[:80]}{cat}")
+        if len(new_bookmarks) > 20:
+            click.echo(f"  ... and {len(new_bookmarks) - 20} more")
+        return
+
+    from lexicon.compiler import WikiCompiler
+    from lexicon.linker import AutoLinker
+    from lexicon.ultramemory_client import UltramemoryClient
+
+    client = UltramemoryClient(settings)
+    compiler_inst = WikiCompiler(settings, client=client)
+    linker_inst = AutoLinker(settings)
+
+    click.echo("Ingesting bookmarks...")
+    result = run_async(
+        connector.async_ingest_new_bookmarks(
+            client, compiler_inst, linker_inst, categories=cat_list
+        )
+    )
+
+    click.echo(f"  Ingested: {result['ingested']} bookmarks")
+    click.echo(f"  Memories created: {result['memories_created']}")
+    if result["articles"]:
+        click.echo(f"  Articles compiled: {len(result['articles'])}")
+        for path in result["articles"]:
+            click.echo(f"    - {Path(path).name}")
+
+
 if __name__ == "__main__":
     cli()
